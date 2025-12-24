@@ -6,6 +6,8 @@ from dotenv import load_dotenv
 from io import StringIO
 import prompts
 import streamlit.components.v1 as components
+import json
+import traceback
 
 # Load environment variables
 load_dotenv()
@@ -169,111 +171,83 @@ if st.session_state.blueprint:
     st.markdown("Generate the application and visualize it directly below.")
     
     if st.button("✨ Generate & Visualize", type="primary"):
-        with st.spinner("Coding the application and injecting data (this may take 30-60 seconds)..."):
-            try:
-                model = genai.GenerativeModel(model_name=model_name, system_instruction=prompts.SYSTEM_PROMPT)
-                
-                # Use .replace() to avoid formatting issues with CSS braces
-                prompt = prompts.PHASE2_PROMPT_TEMPLATE.replace(
-                    "{{BLUEPRINT}}", st.session_state.blueprint
-                )
-                
-                # Increase token limit
-                response = model.generate_content(prompt, generation_config={"max_output_tokens": 8192})
-                
-                # Extract code block
-                content = response.text
-                if "```html" in content:
-                    code = content.split("```html")[1].split("```")[0].strip()
-                elif "```" in content:
-                    code = content.split("```")[1].split("```")[0].strip()
-                else:
-                    code = content
-
-                # --- Data Injection ---
-                # We inject the CSV data directly into the HTML to avoid manual upload in the iframe
-                # We replace the Splash Screen trigger logic
-                
-                # Escape backticks in CSV just in case
-                safe_csv = st.session_state.full_csv_text.replace("`", "\\`")
-                
-                injection_script = f"""
-                <script>
-                    // ERROR HANDLER & SHIMS
-                    window.onerror = function(msg, url, line, col, error) {{
-                        console.error("Dashboard Error:", msg, line, error);
-                    }};
-
-                    // Shim for common AI hallucinated function names if they are missing
-                    if (typeof handleFileSelect === 'undefined') {{
-                        window.handleFileSelect = function(e) {{ console.log("handleFileSelect shim triggered"); }};
-                    }}
-
-                    // INJECTED DATA START
-                    const injectedCSV = `{safe_csv}`;
-                    // INJECTED DATA END
-
-                    // Auto-load Logic
-                    const autoLoadData = () => {{
-                        console.log("Starting Auto-load...");
+        if not st.session_state.full_csv_text:
+            st.error("Please upload a CSV file first.")
+        else:
+            with st.spinner("Analyzing data and performing Python-side aggregation..."):
+                try:
+                    # 1. Generate Codes
+                    model = genai.GenerativeModel(model_name=model_name, system_instruction=prompts.SYSTEM_PROMPT)
+                    prompt = prompts.PHASE2_PROMPT_TEMPLATE.replace("{{BLUEPRINT}}", st.session_state.blueprint)
+                    
+                    response = model.generate_content(prompt, generation_config={"max_output_tokens": 8192})
+                    content = response.text
+                    
+                    # 2. Extract Python and HTML Blocks
+                    py_code = ""
+                    html_code = ""
+                    if "```python" in content:
+                        py_code = content.split("```python")[1].split("```")[0].strip()
+                    if "```html" in content:
+                        html_code = content.split("```html")[1].split("```")[0].strip()
+                    
+                    if not py_code or not html_code:
+                        st.error("Failed to generate code blocks. Please try again.")
+                        st.expander("AI Response").write(content)
+                        st.stop()
+                    
+                    # 3. Execute Python Aggregation
+                    # Load data into DataFrame
+                    try:
+                        uploaded_file.seek(0)
+                        # We try to detect the encoding again or use the one from state if we stored it
+                        # Since we have full_csv_text, let's just use StringIO
+                        df_full = pd.read_csv(StringIO(st.session_state.full_csv_text))
                         
-                        // Check if processData exists (Crucial)
-                        if (typeof processData !== 'function') {{
-                            console.error("Fatal: processData function not found. AI generation might be malformed.");
-                            // Try to find ANY function that looks like a data processor? No, too risky.
-                            alert("Dashboard Error: Data processing function missing.");
-                            return;
-                        }}
-
-                        document.getElementById('initialSplash').classList.add('hidden');
-                        document.getElementById('loadingOverlay').classList.remove('hidden');
-                        document.getElementById('loadingText').textContent = 'Analyzing Data...';
-
-                        Papa.parse(injectedCSV, {{
-                            header: true,
-                            skipEmptyLines: 'greedy',
-                            complete: (results) => {{
-                                console.log("CSV Parsed:", results.data.length, "rows");
-                                try {{
-                                    processData(results.data);
-                                    console.log("Data processed successfully.");
-                                }} catch (e) {{
-                                    console.error("Error in processData:", e);
-                                    alert("Analysis Error: " + e.message);
-                                }}
-                            }},
-                            error: (err) => console.error("PapaParse error:", err)
-                        }});
-                    }};
-
-                    // Hook into window.onload
-                    const originalOnLoad = window.onload;
-                    window.onload = function() {{
-                        // Ensure shims are set again just in case overwritten
-                        if (typeof handleFileSelect === 'undefined') {{
-                            window.handleFileSelect = function(e) {{}};
-                        }}
+                        # Prepare local scope for execution
+                        local_scope = {"pd": pd, "df": df_full}
+                        exec(py_code, {}, local_scope)
                         
-                        // Run original init (setup event listeners etc)
-                        if (originalOnLoad) originalOnLoad();
+                        if "aggregate_all_data" not in local_scope:
+                            st.error("AI failed to define 'aggregate_all_data' function.")
+                            st.stop()
                         
-                        // Delay slightly to ensure Chart.js/DOM is ready
-                        setTimeout(autoLoadData, 500);
-                    }};
-                </script>
-                """
-                
-                # Insert injection script before </body>
-                final_html = code.replace("</body>", f"{injection_script}</body>")
-                
-                st.session_state.generated_html = final_html
-                st.balloons()
-                
-            except Exception as e:
-                st.error(f"Generation Error: {e}")
+                        aggregated_data = local_scope["aggregate_all_data"](df_full)
+                        json_data = json.dumps(aggregated_data, ensure_ascii=False)
+                        
+                    except Exception as e:
+                        st.error(f"Execution Error (Python): {e}")
+                        st.code(py_code, language="python")
+                        st.stop()
+
+                    # 4. Inject JSON and Shims into HTML
+                    final_html = html_code.replace("{{JSON_DATA}}", json_data)
+                    
+                    # Add Direct View Auto-load Shim
+                    injection_script = f"""
+                    <script>
+                        // Overwrite window.onload to skip splash and init with data
+                        const originalOnLoad = window.onload;
+                        window.onload = function() {{
+                            if (originalOnLoad) originalOnLoad();
+                            console.log("Direct View: Dashboard data injected.");
+                            document.getElementById('initialSplash').classList.add('hidden');
+                            if (typeof renderCharts === 'function') renderCharts();
+                            // If there are other initialization functions, call them here
+                        }};
+                    </script>
+                    """
+                    final_html = final_html.replace("</body>", f"{injection_script}</body>")
+                    
+                    st.session_state.generated_html = final_html
+                    st.balloons()
+                    
+                except Exception as e:
+                    st.error(f"Generation Error: {e}")
+                    st.write(traceback.format_exc())
 
     if st.session_state.generated_html:
-        st.success("Dashboard Generated!")
+        st.success("Dashboard Generated with Python Optimization!")
         
         # Tabs for View vs Download
         tab1, tab2 = st.tabs(["👁️ Direct View", "📥 Download HTML"])

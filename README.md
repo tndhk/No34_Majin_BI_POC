@@ -5,13 +5,15 @@ Gemini 2.0 (or Pro) を活用し、[majin式GemBI.md](majin式GemBI.md) で定�
 
 ## ✨ 特徴
 
+- **ハイブリッド生成アーキテクチャ (Performance Optimized)**:
+    - **Python (Pandas)**: サーバーサイド（Streamlit）で全データのパースと集計を高速実行。
+    - **JSON Injection**: 集計結果のみをHTMLに注入。
+    - **Lightweight Frontend**: ブラウザは描画のみに専念するため、数万行のデータでも快適に表示可能。
 - **2段階生成フロー**:
     1.  **Blueprint Phase**: データを分析し、「どのようなグラフを20個作るか」の設計図を提案します。
-    2.  **Coding Phase**: 承認された設計図に基づき、Chart.js を使用した単一HTML完結型のダッシュボードを生成します。
-- **高度なローカルDashboard**:
-    - 生成されるHTMLはサーバー不要で動作。
-    - 20個以上のグラフ、KPIパネル、AI分析レポート機能を搭載。
-    - PDF保存、JSONエクスポート機能付き。
+    2.  **Coding Phase**: 承認された設計図に基づき、Python集計コードとダッシュボードHTMLを生成します。
+- **Direct View モード**:
+    - 生成後、スプラッシュ画面をスキップして即座にダッシュボードを表示します。
 
 ## 🛠 動作環境
 
