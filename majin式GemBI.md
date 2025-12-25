@@ -1068,6 +1068,34 @@
                                 <span class="w-1 h-4 bg-blue-500 rounded-full"></span>
                                 ${def.title}
                             </h4>
+                            <div class="flex items-center gap-1">
+                                <button class="chart-customize-btn p-1 rounded hover:bg-slate-100 transition-all" data-chart-id="${def.id}" title="グラフをカスタマイズ">
+                                    <i data-lucide="settings" class="w-4 h-4 text-slate-400"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="chart-customize-panel hidden bg-slate-50 border border-slate-200 rounded-lg p-3 mb-3" id="customize-${def.id}">
+                            <div class="flex flex-wrap items-center gap-3">
+                                <div class="flex items-center gap-2">
+                                    <label class="text-xs font-bold text-slate-600">グラフ種類:</label>
+                                    <select class="chart-type-selector text-xs border border-slate-300 rounded px-2 py-1 focus:outline-none focus:border-blue-500" data-chart-id="${def.id}">
+                                        <option value="bar">棒グラフ</option>
+                                        <option value="line">折れ線</option>
+                                        <option value="pie">円グラフ</option>
+                                        <option value="doughnut">ドーナツ</option>
+                                        <option value="radar">レーダー</option>
+                                        <option value="polarArea">極座標</option>
+                                        <option value="scatter">散布図</option>
+                                    </select>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <label class="text-xs font-bold text-slate-600">カラー:</label>
+                                    <input type="color" class="chart-color-picker border border-slate-300 rounded cursor-pointer h-7 w-14" data-chart-id="${def.id}" title="グラフの色を変更">
+                                </div>
+                                <button class="chart-reset-btn text-xs px-2 py-1 bg-slate-200 hover:bg-slate-300 rounded transition-all font-semibold text-slate-700" data-chart-id="${def.id}">
+                                    リセット
+                                </button>
+                            </div>
                         </div>
                         <div class="chart-container">
                             <canvas id="${def.id}"></canvas>
@@ -1078,42 +1106,208 @@
                     const ctx = document.getElementById(def.id).getContext('2d');
                     const data = def.getData();
                     
+                    // Load saved customizations from localStorage
+                    const savedCustomizations = JSON.parse(localStorage.getItem('chartCustomizations') || '{}');
+                    const customization = savedCustomizations[def.id] || {};
+                    const chartType = customization.type || def.type;
+                    const chartColor = customization.color || COLORS[0];
+
                     charts[def.id] = new Chart(ctx, {
-                        type: def.type,
+                        type: chartType,
                         data: data,
                         options: {
                             responsive: true,
                             maintainAspectRatio: false,
                             plugins: {
-                                legend: { 
-                                    display: def.type === 'pie' || def.type === 'doughnut' || def.title.includes('推移') || def.title.includes('分布'),
-                                    position: (def.type === 'pie' || def.type === 'doughnut') ? 'right' : 'bottom',
+                                legend: {
+                                    display: chartType === 'pie' || chartType === 'doughnut' || def.title.includes('推移') || def.title.includes('分布'),
+                                    position: (chartType === 'pie' || chartType === 'doughnut') ? 'right' : 'bottom',
                                     labels: { boxWidth: 10, font: { size: 10 } }
                                 },
                                 datalabels: {
                                     display: (ctx) => {
-                                        return ctx.dataset.data.length < 20 && ctx.chart.width > 200 && def.type !== 'scatter'; 
+                                        return ctx.dataset.data.length < 20 && ctx.chart.width > 200 && chartType !== 'scatter';
                                     },
                                     color: '#fff',
                                     font: { weight: 'bold', size: 9 },
                                     formatter: (value) => {
                                         if (value === null || value === undefined) return '';
-                                        if (def.type === 'scatter') return '';
+                                        if (chartType === 'scatter') return '';
                                         return formatShortNumber(value);
                                     },
                                     textShadowColor: 'rgba(0,0,0,0.5)',
                                     textShadowBlur: 2
                                 }
                             },
-                            scales: (def.type === 'pie' || def.type === 'doughnut' || def.type === 'radar') ? {} : (def.options?.scales || {}),
+                            scales: (chartType === 'pie' || chartType === 'doughnut' || chartType === 'radar' || chartType === 'polarArea') ? {} : (def.options?.scales || {}),
                             ...def.options
                         }
                     });
+
+                    // Apply custom color if saved
+                    if (customization.color) {
+                        applyColorToChart(def.id, customization.color);
+                    }
+
+                    // Set up customization controls
+                    const customizeBtn = div.querySelector('.chart-customize-btn');
+                    const customizePanel = div.querySelector('.chart-customize-panel');
+                    const typeSelector = div.querySelector('.chart-type-selector');
+                    const colorPicker = div.querySelector('.chart-color-picker');
+                    const resetBtn = div.querySelector('.chart-reset-btn');
+
+                    // Set current values
+                    typeSelector.value = chartType;
+                    colorPicker.value = customization.color || COLORS[0];
+
+                    // Toggle customization panel
+                    customizeBtn.addEventListener('click', () => {
+                        customizePanel.classList.toggle('hidden');
+                    });
+
+                    // Change chart type
+                    typeSelector.addEventListener('change', (e) => {
+                        const newType = e.target.value;
+                        updateChartType(def.id, newType);
+                        saveCustomization(def.id, { type: newType, color: colorPicker.value });
+                    });
+
+                    // Change chart color
+                    colorPicker.addEventListener('change', (e) => {
+                        const newColor = e.target.value;
+                        applyColorToChart(def.id, newColor);
+                        saveCustomization(def.id, { type: typeSelector.value, color: newColor });
+                    });
+
+                    // Reset to defaults
+                    resetBtn.addEventListener('click', () => {
+                        updateChartType(def.id, def.type);
+                        applyColorToChart(def.id, COLORS[0]);
+                        typeSelector.value = def.type;
+                        colorPicker.value = COLORS[0];
+                        removeCustomization(def.id);
+                    });
+
                 } catch (e) {
                     console.error(`Error rendering chart ${def.title}:`, e);
                 }
             });
+
+            // Initialize Lucide icons for customization buttons
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+
             document.getElementById('loadingOverlay').classList.add('hidden');
+        }
+
+        // Chart customization functions
+        function updateChartType(chartId, newType) {
+            if (!charts[chartId]) return;
+
+            const chart = charts[chartId];
+            const chartDef = globalChartDefinitions.find(d => d.id === chartId);
+            if (!chartDef) return;
+
+            // Destroy old chart
+            chart.destroy();
+
+            // Get fresh data
+            const data = chartDef.getData();
+
+            // Create new chart with new type
+            const ctx = document.getElementById(chartId).getContext('2d');
+            charts[chartId] = new Chart(ctx, {
+                type: newType,
+                data: data,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: newType === 'pie' || newType === 'doughnut' || chartDef.title.includes('推移') || chartDef.title.includes('分布'),
+                            position: (newType === 'pie' || newType === 'doughnut') ? 'right' : 'bottom',
+                            labels: { boxWidth: 10, font: { size: 10 } }
+                        },
+                        datalabels: {
+                            display: (ctx) => {
+                                return ctx.dataset.data.length < 20 && ctx.chart.width > 200 && newType !== 'scatter';
+                            },
+                            color: '#fff',
+                            font: { weight: 'bold', size: 9 },
+                            formatter: (value) => {
+                                if (value === null || value === undefined) return '';
+                                if (newType === 'scatter') return '';
+                                return formatShortNumber(value);
+                            },
+                            textShadowColor: 'rgba(0,0,0,0.5)',
+                            textShadowBlur: 2
+                        }
+                    },
+                    scales: (newType === 'pie' || newType === 'doughnut' || newType === 'radar' || newType === 'polarArea') ? {} : (chartDef.options?.scales || {}),
+                    ...chartDef.options
+                }
+            });
+
+            // Reapply saved color if exists
+            const savedCustomizations = JSON.parse(localStorage.getItem('chartCustomizations') || '{}');
+            if (savedCustomizations[chartId]?.color) {
+                applyColorToChart(chartId, savedCustomizations[chartId].color);
+            }
+        }
+
+        function applyColorToChart(chartId, color) {
+            if (!charts[chartId]) return;
+
+            const chart = charts[chartId];
+
+            // Apply color to all datasets
+            chart.data.datasets.forEach(dataset => {
+                if (chart.config.type === 'line') {
+                    dataset.borderColor = color;
+                    dataset.backgroundColor = color + '20';
+                } else if (chart.config.type === 'pie' || chart.config.type === 'doughnut') {
+                    // For pie/doughnut, create color variations
+                    const baseColor = color;
+                    dataset.backgroundColor = dataset.data.map((_, i) => {
+                        return adjustColorBrightness(baseColor, i * 10);
+                    });
+                } else {
+                    dataset.backgroundColor = color;
+                    if (dataset.borderColor) {
+                        dataset.borderColor = color;
+                    }
+                }
+            });
+
+            chart.update();
+        }
+
+        function adjustColorBrightness(hex, percent) {
+            // Convert hex to RGB
+            const r = parseInt(hex.slice(1, 3), 16);
+            const g = parseInt(hex.slice(3, 5), 16);
+            const b = parseInt(hex.slice(5, 7), 16);
+
+            // Adjust brightness
+            const adjustedR = Math.max(0, Math.min(255, r + percent));
+            const adjustedG = Math.max(0, Math.min(255, g + percent));
+            const adjustedB = Math.max(0, Math.min(255, b + percent));
+
+            // Convert back to hex
+            return `#${adjustedR.toString(16).padStart(2, '0')}${adjustedG.toString(16).padStart(2, '0')}${adjustedB.toString(16).padStart(2, '0')}`;
+        }
+
+        function saveCustomization(chartId, customization) {
+            const saved = JSON.parse(localStorage.getItem('chartCustomizations') || '{}');
+            saved[chartId] = customization;
+            localStorage.setItem('chartCustomizations', JSON.stringify(saved));
+        }
+
+        function removeCustomization(chartId) {
+            const saved = JSON.parse(localStorage.getItem('chartCustomizations') || '{}');
+            delete saved[chartId];
+            localStorage.setItem('chartCustomizations', JSON.stringify(saved));
         }
 
         async function generateAIInsight() {
