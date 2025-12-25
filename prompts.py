@@ -25,6 +25,8 @@ PHASE1_PROMPT_TEMPLATE = """
 - データサンプル (5行):
 {sample_data}
 
+{custom_focus}
+
 ## 出力フォーマット
 以下のMarkdown形式で出力してください。
 

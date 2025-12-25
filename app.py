@@ -132,9 +132,18 @@ else:
 if st.session_state.csv_summary:
     st.markdown("---")
     st.markdown("### Step 2: Analyze & Blueprint")
-    
+
+    # Custom Analysis Focus (Optional)
+    st.markdown("#### 📋 カスタム分析パラメータ (オプション)")
+    custom_analysis_focus = st.text_area(
+        "重視したいKPIや分析の切り口を入力してください (Optional)",
+        placeholder="例:\n- 売上高と利益率の関係性を重点的に分析\n- 地域別・時系列での傾向把握\n- 顧客セグメント別のパフォーマンス比較",
+        height=100,
+        help="ここに入力した内容がAIプロンプトに追加され、分析の観点がカスタマイズされます"
+    )
+
     col1, col2 = st.columns([1, 2])
-    
+
     with col1:
         st.markdown("""
         **Phase 1 Analysis:**
@@ -144,12 +153,22 @@ if st.session_state.csv_summary:
             with st.spinner("Analyzing data structure..."):
                 try:
                     model = genai.GenerativeModel(model_name=model_name, system_instruction=prompts.SYSTEM_PROMPT)
-                    
+
+                    # Prepare custom focus section
+                    custom_focus_section = ""
+                    if custom_analysis_focus and custom_analysis_focus.strip():
+                        custom_focus_section = f"""
+## ユーザー指定の分析重視事項
+以下の観点を特に重視して分析設計を行ってください:
+{custom_analysis_focus.strip()}
+"""
+
                     prompt = prompts.PHASE1_PROMPT_TEMPLATE.format(
                         columns=st.session_state.csv_summary["columns"],
-                        sample_data=st.session_state.csv_summary["sample"]
+                        sample_data=st.session_state.csv_summary["sample"],
+                        custom_focus=custom_focus_section
                     )
-                    
+
                     response = model.generate_content(prompt)
                     st.session_state.blueprint = response.text
                     st.session_state.generated_html = None # Reset downstream
