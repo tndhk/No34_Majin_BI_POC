@@ -77,6 +77,30 @@ class TestChatHandlerIntentClassification:
 
         assert intent == Intent.GENERAL
 
+    def test_classify_intent_fallback_on_invalid_json(self):
+        """JSONパースエラー時はGENERALにフォールバック"""
+        mock_model = Mock()
+        mock_model.generate_content.return_value = Mock(
+            text='これはJSONではありません'
+        )
+
+        handler = ChatHandler(model=mock_model)
+        intent = handler.classify_intent("テスト")
+
+        assert intent == Intent.GENERAL
+
+    def test_classify_intent_fallback_on_invalid_intent(self):
+        """不正なintent値の場合はGENERALにフォールバック"""
+        mock_model = Mock()
+        mock_model.generate_content.return_value = Mock(
+            text='{"intent": "invalid_intent", "entities": []}'
+        )
+
+        handler = ChatHandler(model=mock_model)
+        intent = handler.classify_intent("テスト")
+
+        assert intent == Intent.GENERAL
+
 
 class TestChatHandlerResponse:
     """応答生成機能のテスト"""
@@ -130,6 +154,26 @@ class TestChatHandlerResponse:
         assert response.type == "chart"
         assert response.chart_spec is not None
 
+    def test_handle_add_chart_with_invalid_chart_spec_json(self, sample_dataframe):
+        """chart_specのJSONが不正な場合はNoneになる"""
+        mock_model = Mock()
+        mock_model.generate_content.side_effect = [
+            Mock(text='{"intent": "add_chart", "entities": []}'),
+            Mock(text="""グラフを作成しました。
+
+```chart_spec
+これは不正なJSON
+```
+""")
+        ]
+
+        handler = ChatHandler(model=mock_model)
+        context = {"df": sample_dataframe, "summary": {}}
+        response = handler.handle_message("グラフを追加", context)
+
+        assert response.type == "chart"
+        assert response.chart_spec is None
+
     def test_handle_analyze_returns_insight_response(self, sample_dataframe):
         """分析リクエストに対してインサイト応答が返される"""
         mock_model = Mock()
@@ -143,6 +187,77 @@ class TestChatHandlerResponse:
         response = handler.handle_message("地域ごとの傾向を分析して", context)
 
         assert response.type == "insight"
+
+    def test_handle_summarize_returns_text_response(self, sample_dataframe):
+        """まとめリクエストに対してテキスト応答が返される"""
+        mock_model = Mock()
+        mock_model.generate_content.side_effect = [
+            Mock(text='{"intent": "summarize", "entities": []}'),
+            Mock(text="データの要約: 5件のデータがあります。")
+        ]
+
+        handler = ChatHandler(model=mock_model)
+        context = {"df": sample_dataframe, "summary": {}}
+        response = handler.handle_message("このデータをまとめて", context)
+
+        assert response.type == "text"
+        assert "要約" in response.content or "データ" in response.content
+
+    def test_handle_general_returns_text_response(self, sample_dataframe):
+        """一般的な会話に対してテキスト応答が返される"""
+        mock_model = Mock()
+        mock_model.generate_content.side_effect = [
+            Mock(text='{"intent": "general", "entities": []}'),
+            Mock(text="こんにちは！データ分析のお手伝いをします。")
+        ]
+
+        handler = ChatHandler(model=mock_model)
+        context = {"df": sample_dataframe, "summary": {}}
+        response = handler.handle_message("こんにちは", context)
+
+        assert response.type == "text"
+
+    def test_handle_question_with_none_df(self):
+        """dfがNoneの場合も処理できる"""
+        mock_model = Mock()
+        mock_model.generate_content.side_effect = [
+            Mock(text='{"intent": "question", "entities": []}'),
+            Mock(text="データがないため回答できません。")
+        ]
+
+        handler = ChatHandler(model=mock_model)
+        context = {"df": None, "summary": {}}
+        response = handler.handle_message("売上は？", context)
+
+        assert response.type == "text"
+
+    def test_handle_analyze_with_none_df(self):
+        """dfがNoneの場合の分析処理"""
+        mock_model = Mock()
+        mock_model.generate_content.side_effect = [
+            Mock(text='{"intent": "analyze", "entities": []}'),
+            Mock(text="データがないため分析できません。")
+        ]
+
+        handler = ChatHandler(model=mock_model)
+        context = {"df": None, "summary": {}}
+        response = handler.handle_message("分析して", context)
+
+        assert response.type == "insight"
+
+    def test_handle_summarize_with_none_df(self):
+        """dfがNoneの場合のまとめ処理"""
+        mock_model = Mock()
+        mock_model.generate_content.side_effect = [
+            Mock(text='{"intent": "summarize", "entities": []}'),
+            Mock(text="データがありません。")
+        ]
+
+        handler = ChatHandler(model=mock_model)
+        context = {"df": None, "summary": {}}
+        response = handler.handle_message("まとめて", context)
+
+        assert response.type == "text"
 
 
 class TestChatHandlerContext:
@@ -215,6 +330,21 @@ class TestChatHandlerChartGeneration:
         assert 'type' in spec
         assert 'title' in spec
 
+    def test_generate_chart_spec_fallback_on_invalid_json(self, sample_dataframe):
+        """JSONパースエラー時はデフォルト仕様を返す"""
+        mock_model = Mock()
+        mock_model.generate_content.return_value = Mock(
+            text='これは不正なJSONです'
+        )
+
+        handler = ChatHandler(model=mock_model)
+        columns = sample_dataframe.columns.tolist()
+        spec = handler.generate_chart_spec("テスト", columns)
+
+        assert spec['type'] == 'bar'
+        assert spec['x'] == columns[0]
+        assert spec['y'] == columns[1]
+
     def test_generate_chart_data_aggregates_correctly(self, sample_dataframe):
         """グラフデータが正しく集計される"""
         handler = ChatHandler(model=Mock())
@@ -226,6 +356,46 @@ class TestChatHandlerChartGeneration:
         assert 'values' in data
         assert '東京' in data['labels']
 
+    def test_generate_chart_data_with_mean_aggregation(self, sample_dataframe):
+        """mean集計が正しく動作する"""
+        handler = ChatHandler(model=Mock())
+        spec = {"type": "bar", "x": "地域", "y": "売上", "aggregation": "mean"}
+
+        data = handler.generate_chart_data(spec, sample_dataframe)
+
+        assert 'labels' in data
+        assert 'values' in data
+
+    def test_generate_chart_data_with_count_aggregation(self, sample_dataframe):
+        """count集計が正しく動作する"""
+        handler = ChatHandler(model=Mock())
+        spec = {"type": "bar", "x": "地域", "y": "売上", "aggregation": "count"}
+
+        data = handler.generate_chart_data(spec, sample_dataframe)
+
+        assert 'labels' in data
+        assert 'values' in data
+
+    def test_generate_chart_data_with_unknown_aggregation(self, sample_dataframe):
+        """不明な集計タイプはsumにフォールバック"""
+        handler = ChatHandler(model=Mock())
+        spec = {"type": "bar", "x": "地域", "y": "売上", "aggregation": "unknown"}
+
+        data = handler.generate_chart_data(spec, sample_dataframe)
+
+        assert 'labels' in data
+        assert 'values' in data
+
+    def test_generate_chart_data_with_invalid_columns(self, sample_dataframe):
+        """存在しないカラムの場合は空リストを返す"""
+        handler = ChatHandler(model=Mock())
+        spec = {"type": "bar", "x": "存在しない", "y": "カラム", "aggregation": "sum"}
+
+        data = handler.generate_chart_data(spec, sample_dataframe)
+
+        assert data['labels'] == []
+        assert data['values'] == []
+
     def test_generate_chart_html_returns_string(self, sample_dataframe):
         """グラフHTMLが文字列で返される"""
         handler = ChatHandler(model=Mock())
@@ -236,3 +406,23 @@ class TestChatHandlerChartGeneration:
 
         assert isinstance(html, str)
         assert 'Chart' in html or 'chart' in html
+
+
+class TestChatHandlerGetDataInfo:
+    """_get_data_info メソッドのテスト"""
+
+    def test_get_data_info_with_none(self):
+        """Noneの場合は適切なメッセージを返す"""
+        handler = ChatHandler(model=Mock())
+        result = handler._get_data_info(None)
+
+        assert result == "データがありません"
+
+    def test_get_data_info_with_dataframe(self, sample_dataframe):
+        """DataFrameの場合は統計情報を含む"""
+        handler = ChatHandler(model=Mock())
+        result = handler._get_data_info(sample_dataframe)
+
+        assert "行数:" in result
+        assert "カラム:" in result
+        assert "売上" in result

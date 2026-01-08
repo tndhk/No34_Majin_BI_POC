@@ -41,6 +41,15 @@ class TestDataProcessorLoadCSV:
 
         assert len(df) == 5
 
+    def test_load_csv_raises_on_unsupported_encoding(self):
+        """サポートされていないエンコーディングの場合はエラー"""
+        processor = DataProcessor()
+        # 不正なバイト列（どのエンコーディングでもデコードできない）
+        invalid_bytes = bytes([0x80, 0x81, 0x82, 0x83, 0xff, 0xfe])
+
+        with pytest.raises(ValueError, match="サポートされていない"):
+            processor.load_csv(invalid_bytes)
+
 
 class TestDataProcessorSummary:
     """データサマリー生成機能のテスト"""
