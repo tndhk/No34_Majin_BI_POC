@@ -6,36 +6,40 @@
 - メモリ使用量の確認
 - ボトルネックの特定
 """
-import pytest
-import pandas as pd
-import numpy as np
+
 import time
 from io import StringIO
 from unittest.mock import Mock
 
-from src.services.data_processor import DataProcessor
+import numpy as np
+import pandas as pd
+import pytest
+
 from src.services.ai_generator import AIGenerator
 from src.services.chat_handler import ChatHandler
+from src.services.data_processor import DataProcessor
 
 
 def generate_large_dataframe(rows: int) -> pd.DataFrame:
     """大規模テストデータを生成"""
     np.random.seed(42)
 
-    regions = ['東京', '大阪', '名古屋', '福岡', '札幌', '仙台', '広島', '神戸']
-    products = [f'商品{i}' for i in range(1, 51)]  # 50商品
-    categories = ['食品', '衣料', '電化製品', '日用品', '書籍']
+    regions = ["東京", "大阪", "名古屋", "福岡", "札幌", "仙台", "広島", "神戸"]
+    products = [f"商品{i}" for i in range(1, 51)]  # 50商品
+    categories = ["食品", "衣料", "電化製品", "日用品", "書籍"]
 
-    return pd.DataFrame({
-        '日付': pd.date_range('2020-01-01', periods=rows, freq='h'),
-        '地域': np.random.choice(regions, rows),
-        '商品名': np.random.choice(products, rows),
-        'カテゴリ': np.random.choice(categories, rows),
-        '売上': np.random.randint(100, 100000, rows),
-        '数量': np.random.randint(1, 100, rows),
-        '利益': np.random.randint(-10000, 50000, rows),
-        '顧客ID': np.random.randint(1, 10000, rows),
-    })
+    return pd.DataFrame(
+        {
+            "日付": pd.date_range("2020-01-01", periods=rows, freq="h"),
+            "地域": np.random.choice(regions, rows),
+            "商品名": np.random.choice(products, rows),
+            "カテゴリ": np.random.choice(categories, rows),
+            "売上": np.random.randint(100, 100000, rows),
+            "数量": np.random.randint(1, 100, rows),
+            "利益": np.random.randint(-10000, 50000, rows),
+            "顧客ID": np.random.randint(1, 10000, rows),
+        }
+    )
 
 
 def generate_large_csv_bytes(rows: int) -> bytes:
@@ -43,7 +47,7 @@ def generate_large_csv_bytes(rows: int) -> bytes:
     df = generate_large_dataframe(rows)
     buffer = StringIO()
     df.to_csv(buffer, index=False)
-    return buffer.getvalue().encode('utf-8')
+    return buffer.getvalue().encode("utf-8")
 
 
 class TestDataProcessorPerformance:
@@ -76,7 +80,7 @@ class TestDataProcessorPerformance:
         summary = processor.generate_summary(df)
         elapsed = time.perf_counter() - start
 
-        assert summary['row_count'] == rows
+        assert summary["row_count"] == rows
         print(f"\n  generate_summary ({rows:,} rows): {elapsed:.3f}s")
 
         # 性能基準: 10万行で1秒以内
@@ -93,7 +97,7 @@ class TestDataProcessorPerformance:
         stats = processor.calculate_statistics(df)
         elapsed = time.perf_counter() - start
 
-        assert '売上' in stats
+        assert "売上" in stats
         print(f"\n  calculate_statistics ({rows:,} rows): {elapsed:.3f}s")
 
         # 性能基準: 10万行で2秒以内
@@ -137,8 +141,8 @@ def aggregate_all_data(df):
         result = generator.execute_aggregation(py_code, df)
         elapsed = time.perf_counter() - start
 
-        assert 'kpi' in result
-        assert result['kpi']['transaction_count'] == rows
+        assert "kpi" in result
+        assert result["kpi"]["transaction_count"] == rows
         print(f"\n  execute_aggregation ({rows:,} rows): {elapsed:.3f}s")
 
         # 性能基準: 10万行で3秒以内
@@ -161,7 +165,7 @@ class TestChatHandlerPerformance:
         data = handler.generate_chart_data(spec, df)
         elapsed = time.perf_counter() - start
 
-        assert len(data['labels']) > 0
+        assert len(data["labels"]) > 0
         print(f"\n  generate_chart_data ({rows:,} rows): {elapsed:.3f}s")
 
         # 性能基準: 10万行で1秒以内
@@ -179,8 +183,8 @@ class TestChatHandlerPerformance:
         context = handler.build_context(df, history)
         elapsed = time.perf_counter() - start
 
-        assert 'data_summary' in context
-        assert len(context['chat_history']) == 10  # 直近10件に制限
+        assert "data_summary" in context
+        assert len(context["chat_history"]) == 10  # 直近10件に制限
         print(f"\n  build_context ({rows:,} rows): {elapsed:.3f}s")
 
         # 性能基準: 10万行で0.1秒以内
@@ -210,7 +214,6 @@ class TestMemoryUsage:
 
     def test_large_data_memory_footprint(self):
         """大規模データのメモリ使用量"""
-        import sys
 
         rows = 100000
         df = generate_large_dataframe(rows)

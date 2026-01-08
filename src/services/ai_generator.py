@@ -7,19 +7,23 @@ AIGenerator - AI を使ったダッシュボード生成
 - HTMLダッシュボードの生成
 - ワンショット生成（統合）
 """
+
 import json
 import re
-import pandas as pd
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Tuple, Dict, Any, Optional, Callable
 from io import StringIO
+from typing import Any
+
+import pandas as pd
 
 
 @dataclass
 class GenerationResult:
     """ダッシュボード生成結果"""
+
     html: str
-    data: Dict[str, Any]
+    data: dict[str, Any]
     blueprint: str
 
 
@@ -63,7 +67,7 @@ Markdown形式で出力してください。
         response = self.model.generate_content(prompt)
         return response.text
 
-    def generate_code(self, blueprint: str) -> Tuple[str, str]:
+    def generate_code(self, blueprint: str) -> tuple[str, str]:
         """
         Blueprintからコードを生成する
 
@@ -98,20 +102,20 @@ def aggregate_all_data(df):
         content = response.text
 
         # Pythonコードを抽出
-        py_match = re.search(r'```python\s*(.*?)\s*```', content, re.DOTALL)
+        py_match = re.search(r"```python\s*(.*?)\s*```", content, re.DOTALL)
         if not py_match:
             raise ValueError("Pythonコードブロックが見つかりません")
         py_code = py_match.group(1).strip()
 
         # HTMLコードを抽出
-        html_match = re.search(r'```html\s*(.*?)\s*```', content, re.DOTALL)
+        html_match = re.search(r"```html\s*(.*?)\s*```", content, re.DOTALL)
         if not html_match:
             raise ValueError("HTMLコードブロックが見つかりません")
         html_code = html_match.group(1).strip()
 
         return py_code, html_code
 
-    def execute_aggregation(self, py_code: str, df: pd.DataFrame) -> Dict[str, Any]:
+    def execute_aggregation(self, py_code: str, df: pd.DataFrame) -> dict[str, Any]:
         """
         Python集計コードを実行する
 
@@ -135,7 +139,7 @@ def aggregate_all_data(df):
 
         return local_scope["aggregate_all_data"](df)
 
-    def assemble_html(self, html_template: str, data: Dict[str, Any]) -> str:
+    def assemble_html(self, html_template: str, data: dict[str, Any]) -> str:
         """
         HTMLテンプレートにデータを注入する
 
@@ -167,9 +171,7 @@ def aggregate_all_data(df):
         return html
 
     def generate_oneshot(
-        self,
-        df: pd.DataFrame,
-        progress_callback: Optional[Callable[[int, str], None]] = None
+        self, df: pd.DataFrame, progress_callback: Callable[[int, str], None] | None = None
     ) -> GenerationResult:
         """
         ワンショットでダッシュボードを生成する
@@ -181,6 +183,7 @@ def aggregate_all_data(df):
         Returns:
             GenerationResult: 生成結果
         """
+
         def notify(step: int, message: str):
             if progress_callback:
                 progress_callback(step, message)
@@ -201,8 +204,4 @@ def aggregate_all_data(df):
         notify(4, "ダッシュボードを構築中...")
         final_html = self.assemble_html(html_template, aggregated_data)
 
-        return GenerationResult(
-            html=final_html,
-            data=aggregated_data,
-            blueprint=blueprint
-        )
+        return GenerationResult(html=final_html, data=aggregated_data, blueprint=blueprint)

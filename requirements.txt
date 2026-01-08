@@ -7,3 +7,9 @@ python-dotenv
 pytest>=7.0.0
 pytest-cov
 pytest-mock
+numpy
+
+# Development
+ruff
+pre-commit
+mypy

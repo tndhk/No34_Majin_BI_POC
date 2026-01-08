@@ -6,15 +6,17 @@ DataProcessor - CSV データの読み込みと処理
 - データサマリーの生成
 - 基本統計量の計算
 """
+
+from io import StringIO
+from typing import Any
+
 import pandas as pd
-from io import BytesIO, StringIO
-from typing import Dict, List, Any, Union
 
 
 class DataProcessor:
     """CSVデータの読み込みと基本的な処理を行うクラス"""
 
-    SUPPORTED_ENCODINGS = ['utf-8', 'shift_jis', 'cp932', 'euc-jp']
+    SUPPORTED_ENCODINGS = ["utf-8", "shift_jis", "cp932", "euc-jp"]
 
     def load_csv(self, data: bytes) -> pd.DataFrame:
         """
@@ -38,7 +40,7 @@ class DataProcessor:
 
         raise ValueError("サポートされていないエンコーディングです")
 
-    def generate_summary(self, df: pd.DataFrame) -> Dict[str, Any]:
+    def generate_summary(self, df: pd.DataFrame) -> dict[str, Any]:
         """
         データフレームのサマリーを生成する
 
@@ -53,8 +55,8 @@ class DataProcessor:
                 - column_types: カラムの型情報
         """
         # カラムの型を分類
-        numeric_columns = df.select_dtypes(include=['number']).columns.tolist()
-        categorical_columns = df.select_dtypes(include=['object']).columns.tolist()
+        numeric_columns = df.select_dtypes(include=["number"]).columns.tolist()
+        categorical_columns = df.select_dtypes(include=["object"]).columns.tolist()
 
         # サンプルデータをCSV文字列に
         buffer = StringIO()
@@ -62,16 +64,16 @@ class DataProcessor:
         sample_csv = buffer.getvalue()
 
         return {
-            'columns': df.columns.tolist(),
-            'row_count': len(df),
-            'sample_data': sample_csv,
-            'column_types': {
-                'numeric_columns': numeric_columns,
-                'categorical_columns': categorical_columns
-            }
+            "columns": df.columns.tolist(),
+            "row_count": len(df),
+            "sample_data": sample_csv,
+            "column_types": {
+                "numeric_columns": numeric_columns,
+                "categorical_columns": categorical_columns,
+            },
         }
 
-    def calculate_statistics(self, df: pd.DataFrame) -> Dict[str, Any]:
+    def calculate_statistics(self, df: pd.DataFrame) -> dict[str, Any]:
         """
         データフレームの統計情報を計算する
 
@@ -86,22 +88,22 @@ class DataProcessor:
         stats = {}
 
         # 数値カラムの統計
-        numeric_columns = df.select_dtypes(include=['number']).columns
+        numeric_columns = df.select_dtypes(include=["number"]).columns
         for col in numeric_columns:
             stats[col] = {
-                'mean': df[col].mean(),
-                'sum': df[col].sum(),
-                'min': df[col].min(),
-                'max': df[col].max(),
-                'std': df[col].std()
+                "mean": df[col].mean(),
+                "sum": df[col].sum(),
+                "min": df[col].min(),
+                "max": df[col].max(),
+                "std": df[col].std(),
             }
 
         # カテゴリカラムの統計
-        categorical_columns = df.select_dtypes(include=['object']).columns
+        categorical_columns = df.select_dtypes(include=["object"]).columns
         for col in categorical_columns:
             stats[col] = {
-                'value_counts': df[col].value_counts().to_dict(),
-                'unique_count': df[col].nunique()
+                "value_counts": df[col].value_counts().to_dict(),
+                "unique_count": df[col].nunique(),
             }
 
         return stats

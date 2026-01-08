@@ -7,31 +7,35 @@ ChatHandler - AIチャットによる対話型分析
 - 追加グラフ生成リクエスト処理
 - コンテキスト管理
 """
+
 import json
 import re
-import pandas as pd
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, Any, List, Optional
+from typing import Any
+
+import pandas as pd
 
 
 class Intent(Enum):
     """ユーザーの意図"""
-    QUESTION = "question"      # データに関する質問
-    ADD_CHART = "add_chart"    # グラフ追加リクエスト
-    ANALYZE = "analyze"        # 分析リクエスト
-    SUMMARIZE = "summarize"    # まとめリクエスト
-    GENERAL = "general"        # 一般的な会話
+
+    QUESTION = "question"  # データに関する質問
+    ADD_CHART = "add_chart"  # グラフ追加リクエスト
+    ANALYZE = "analyze"  # 分析リクエスト
+    SUMMARIZE = "summarize"  # まとめリクエスト
+    GENERAL = "general"  # 一般的な会話
 
 
 @dataclass
 class ChatResponse:
     """チャット応答"""
+
     type: str  # "text", "chart", "insight", "error"
     content: str
-    chart_spec: Optional[Dict[str, Any]] = None
-    chart_html: Optional[str] = None
-    data: Optional[Dict[str, Any]] = None
+    chart_spec: dict[str, Any] | None = None
+    chart_html: str | None = None
+    data: dict[str, Any] | None = None
 
 
 class ChatHandler:
@@ -76,7 +80,7 @@ JSON形式で回答してください: {{"intent": "カテゴリ名", "entities"
         except (json.JSONDecodeError, ValueError):
             return Intent.GENERAL
 
-    def handle_message(self, message: str, context: Dict[str, Any]) -> ChatResponse:
+    def handle_message(self, message: str, context: dict[str, Any]) -> ChatResponse:
         """
         ユーザーメッセージを処理して応答を生成する
 
@@ -100,9 +104,9 @@ JSON形式で回答してください: {{"intent": "カテゴリ名", "entities"
         else:
             return self._handle_general(message, context)
 
-    def _handle_question(self, message: str, context: Dict[str, Any]) -> ChatResponse:
+    def _handle_question(self, message: str, context: dict[str, Any]) -> ChatResponse:
         """質問に対する応答を生成"""
-        df = context.get('df')
+        df = context.get("df")
         data_info = self._get_data_info(df) if df is not None else ""
 
         prompt = f"""
@@ -119,9 +123,9 @@ JSON形式で回答してください: {{"intent": "カテゴリ名", "entities"
         response = self.model.generate_content(prompt)
         return ChatResponse(type="text", content=response.text)
 
-    def _handle_add_chart(self, message: str, context: Dict[str, Any]) -> ChatResponse:
+    def _handle_add_chart(self, message: str, context: dict[str, Any]) -> ChatResponse:
         """グラフ追加リクエストを処理"""
-        df = context.get('df')
+        df = context.get("df")
         columns = df.columns.tolist() if df is not None else []
 
         prompt = f"""
@@ -145,22 +149,18 @@ JSON形式で回答してください: {{"intent": "カテゴリ名", "entities"
 
         # chart_specを抽出
         chart_spec = None
-        spec_match = re.search(r'```chart_spec\s*(.*?)\s*```', content, re.DOTALL)
+        spec_match = re.search(r"```chart_spec\s*(.*?)\s*```", content, re.DOTALL)
         if spec_match:
             try:
                 chart_spec = json.loads(spec_match.group(1))
             except json.JSONDecodeError:
                 pass
 
-        return ChatResponse(
-            type="chart",
-            content=content,
-            chart_spec=chart_spec
-        )
+        return ChatResponse(type="chart", content=content, chart_spec=chart_spec)
 
-    def _handle_analyze(self, message: str, context: Dict[str, Any]) -> ChatResponse:
+    def _handle_analyze(self, message: str, context: dict[str, Any]) -> ChatResponse:
         """分析リクエストを処理"""
-        df = context.get('df')
+        df = context.get("df")
         data_info = self._get_data_info(df) if df is not None else ""
 
         prompt = f"""
@@ -177,9 +177,9 @@ JSON形式で回答してください: {{"intent": "カテゴリ名", "entities"
         response = self.model.generate_content(prompt)
         return ChatResponse(type="insight", content=response.text)
 
-    def _handle_summarize(self, message: str, context: Dict[str, Any]) -> ChatResponse:
+    def _handle_summarize(self, message: str, context: dict[str, Any]) -> ChatResponse:
         """まとめリクエストを処理"""
-        df = context.get('df')
+        df = context.get("df")
         data_info = self._get_data_info(df) if df is not None else ""
 
         prompt = f"""
@@ -196,7 +196,7 @@ JSON形式で回答してください: {{"intent": "カテゴリ名", "entities"
         response = self.model.generate_content(prompt)
         return ChatResponse(type="text", content=response.text)
 
-    def _handle_general(self, message: str, context: Dict[str, Any]) -> ChatResponse:
+    def _handle_general(self, message: str, context: dict[str, Any]) -> ChatResponse:
         """一般的な会話を処理"""
         prompt = f"""
 あなたはデータ分析アシスタントです。以下のメッセージに応答してください。
@@ -213,27 +213,23 @@ JSON形式で回答してください: {{"intent": "カテゴリ名", "entities"
         if df is None:
             return "データがありません"
 
-        numeric_cols = df.select_dtypes(include=['number']).columns.tolist()
+        numeric_cols = df.select_dtypes(include=["number"]).columns.tolist()
         stats = {}
         for col in numeric_cols:
             stats[col] = {
-                'sum': float(df[col].sum()),
-                'mean': float(df[col].mean()),
-                'min': float(df[col].min()),
-                'max': float(df[col].max())
+                "sum": float(df[col].sum()),
+                "mean": float(df[col].mean()),
+                "min": float(df[col].min()),
+                "max": float(df[col].max()),
             }
 
         return f"""
 行数: {len(df)}
-カラム: {', '.join(df.columns.tolist())}
+カラム: {", ".join(df.columns.tolist())}
 数値カラムの統計: {json.dumps(stats, ensure_ascii=False)}
 """
 
-    def build_context(
-        self,
-        df: pd.DataFrame,
-        chat_history: List[Dict[str, str]]
-    ) -> Dict[str, Any]:
+    def build_context(self, df: pd.DataFrame, chat_history: list[dict[str, str]]) -> dict[str, Any]:
         """
         AIに渡すコンテキストを構築する
 
@@ -245,12 +241,12 @@ JSON形式で回答してください: {{"intent": "カテゴリ名", "entities"
             dict: コンテキスト情報
         """
         return {
-            'data_summary': f"行数: {len(df)}, カラム数: {len(df.columns)}",
-            'columns': ', '.join(df.columns.tolist()),
-            'chat_history': chat_history[-10:]  # 直近10件に制限
+            "data_summary": f"行数: {len(df)}, カラム数: {len(df.columns)}",
+            "columns": ", ".join(df.columns.tolist()),
+            "chat_history": chat_history[-10:],  # 直近10件に制限
         }
 
-    def generate_chart_spec(self, request: str, columns: List[str]) -> Dict[str, Any]:
+    def generate_chart_spec(self, request: str, columns: list[str]) -> dict[str, Any]:
         """
         グラフ仕様を生成する
 
@@ -275,9 +271,14 @@ JSON形式のみで回答してください:
             return json.loads(response.text)
         except json.JSONDecodeError:
             # デフォルト仕様を返す
-            return {"type": "bar", "title": request, "x": columns[0], "y": columns[1] if len(columns) > 1 else columns[0]}
+            return {
+                "type": "bar",
+                "title": request,
+                "x": columns[0],
+                "y": columns[1] if len(columns) > 1 else columns[0],
+            }
 
-    def generate_chart_data(self, spec: Dict[str, Any], df: pd.DataFrame) -> Dict[str, Any]:
+    def generate_chart_data(self, spec: dict[str, Any], df: pd.DataFrame) -> dict[str, Any]:
         """
         グラフ仕様に基づいてデータを集計する
 
@@ -288,28 +289,25 @@ JSON形式のみで回答してください:
         Returns:
             dict: 集計されたグラフデータ
         """
-        x_col = spec.get('x')
-        y_col = spec.get('y')
-        aggregation = spec.get('aggregation', 'sum')
+        x_col = spec.get("x")
+        y_col = spec.get("y")
+        aggregation = spec.get("aggregation", "sum")
 
         if x_col not in df.columns or y_col not in df.columns:
             return {"labels": [], "values": []}
 
-        if aggregation == 'sum':
+        if aggregation == "sum":
             grouped = df.groupby(x_col)[y_col].sum()
-        elif aggregation == 'mean':
+        elif aggregation == "mean":
             grouped = df.groupby(x_col)[y_col].mean()
-        elif aggregation == 'count':
+        elif aggregation == "count":
             grouped = df.groupby(x_col)[y_col].count()
         else:
             grouped = df.groupby(x_col)[y_col].sum()
 
-        return {
-            "labels": grouped.index.tolist(),
-            "values": grouped.values.tolist()
-        }
+        return {"labels": grouped.index.tolist(), "values": grouped.values.tolist()}
 
-    def generate_chart_html(self, spec: Dict[str, Any], data: Dict[str, Any]) -> str:
+    def generate_chart_html(self, spec: dict[str, Any], data: dict[str, Any]) -> str:
         """
         グラフHTMLを生成する
 
@@ -320,10 +318,10 @@ JSON形式のみで回答してください:
         Returns:
             str: Chart.js を使ったHTML
         """
-        chart_type = spec.get('type', 'bar')
-        title = spec.get('title', 'Chart')
-        labels = json.dumps(data.get('labels', []))
-        values = json.dumps(data.get('values', []))
+        chart_type = spec.get("type", "bar")
+        title = spec.get("title", "Chart")
+        labels = json.dumps(data.get("labels", []))
+        values = json.dumps(data.get("values", []))
 
         return f"""
 <div style="width: 100%; max-width: 600px;">

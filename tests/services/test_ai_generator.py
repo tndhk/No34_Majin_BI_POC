@@ -7,9 +7,10 @@ AIGenerator のテスト
 - HTMLダッシュボードの生成
 - ワンショット生成（統合）
 """
+
+from unittest.mock import Mock
+
 import pytest
-from unittest.mock import Mock, patch, MagicMock
-import pandas as pd
 
 from src.services.ai_generator import AIGenerator, GenerationResult
 
@@ -41,7 +42,7 @@ class TestAIGeneratorBlueprint:
         call_args = mock_model.generate_content.call_args[0][0]
 
         # プロンプトにカラム情報が含まれている
-        assert '売上' in call_args or 'columns' in call_args.lower()
+        assert "売上" in call_args or "columns" in call_args.lower()
 
 
 class TestAIGeneratorCodeGeneration:
@@ -89,8 +90,8 @@ def aggregate_all_data(df):
         generator = AIGenerator(model=mock_model)
         py_code, _ = generator.generate_code("Blueprint")
 
-        assert 'def aggregate_all_data' in py_code
-        assert 'return result' in py_code
+        assert "def aggregate_all_data" in py_code
+        assert "return result" in py_code
 
     def test_generate_code_extracts_html_block(self, sample_dataframe):
         """HTMLコードブロックが抽出される"""
@@ -115,8 +116,8 @@ def aggregate_all_data(df):
         generator = AIGenerator(model=mock_model)
         _, html_code = generator.generate_code("Blueprint")
 
-        assert '<!DOCTYPE html>' in html_code
-        assert '<html>' in html_code
+        assert "<!DOCTYPE html>" in html_code
+        assert "<html>" in html_code
 
     def test_generate_code_raises_on_missing_python(self):
         """Pythonブロックがない場合はエラー"""
@@ -165,7 +166,7 @@ def aggregate_all_data(df):
         result = generator.execute_aggregation(py_code, sample_dataframe)
 
         assert isinstance(result, dict)
-        assert 'kpi' in result
+        assert "kpi" in result
 
     def test_execute_aggregation_correct_values(self, sample_dataframe):
         """集計値が正しい"""
@@ -181,8 +182,8 @@ def aggregate_all_data(df):
         generator = AIGenerator(model=Mock())
         result = generator.execute_aggregation(py_code, sample_dataframe)
 
-        assert result['kpi']['total_sales'] == 65000
-        assert result['kpi']['count'] == 5
+        assert result["kpi"]["total_sales"] == 65000
+        assert result["kpi"]["count"] == 5
 
     def test_execute_aggregation_raises_on_syntax_error(self, sample_dataframe):
         """構文エラーの場合は例外"""
@@ -223,7 +224,7 @@ class TestAIGeneratorAssembly:
         generator = AIGenerator(model=Mock())
         result = generator.assemble_html(html_template, data)
 
-        assert '{{JSON_DATA}}' not in result
+        assert "{{JSON_DATA}}" not in result
         assert '"kpi"' in result
         assert '"total": 100' in result
 
@@ -240,7 +241,7 @@ class TestAIGeneratorAssembly:
         generator = AIGenerator(model=Mock())
         result = generator.assemble_html(html_template, data)
 
-        assert 'Direct View' in result or 'renderCharts' in result
+        assert "Direct View" in result or "renderCharts" in result
 
 
 class TestAIGeneratorOneshot:
@@ -253,7 +254,8 @@ class TestAIGeneratorOneshot:
         # Blueprint生成
         mock_model.generate_content.side_effect = [
             Mock(text="## Blueprint\n| No | Chart |"),
-            Mock(text="""
+            Mock(
+                text="""
 ```python
 def aggregate_all_data(df):
     return {"kpi": {"total": int(df['売上'].sum())}, "charts": {}}
@@ -266,7 +268,8 @@ def aggregate_all_data(df):
 <body></body>
 </html>
 ```
-""")
+"""
+            ),
         ]
 
         generator = AIGenerator(model=mock_model)
@@ -279,7 +282,8 @@ def aggregate_all_data(df):
         mock_model = Mock()
         mock_model.generate_content.side_effect = [
             Mock(text="Blueprint"),
-            Mock(text="""
+            Mock(
+                text="""
 ```python
 def aggregate_all_data(df):
     return {"kpi": {}, "charts": {}}
@@ -288,21 +292,23 @@ def aggregate_all_data(df):
 ```html
 <!DOCTYPE html><html><body></body></html>
 ```
-""")
+"""
+            ),
         ]
 
         generator = AIGenerator(model=mock_model)
         result = generator.generate_oneshot(sample_dataframe)
 
         assert result.html is not None
-        assert '<!DOCTYPE html>' in result.html
+        assert "<!DOCTYPE html>" in result.html
 
     def test_generate_oneshot_contains_data(self, sample_dataframe):
         """結果に集計データが含まれる"""
         mock_model = Mock()
         mock_model.generate_content.side_effect = [
             Mock(text="Blueprint"),
-            Mock(text="""
+            Mock(
+                text="""
 ```python
 def aggregate_all_data(df):
     return {"kpi": {"total": 65000}, "charts": {}}
@@ -311,21 +317,23 @@ def aggregate_all_data(df):
 ```html
 <!DOCTYPE html><html><script>const dashboardData = {{JSON_DATA}};</script><body></body></html>
 ```
-""")
+"""
+            ),
         ]
 
         generator = AIGenerator(model=mock_model)
         result = generator.generate_oneshot(sample_dataframe)
 
         assert result.data is not None
-        assert result.data['kpi']['total'] == 65000
+        assert result.data["kpi"]["total"] == 65000
 
     def test_generate_oneshot_calls_progress_callback(self, sample_dataframe):
         """進捗コールバックが呼ばれる"""
         mock_model = Mock()
         mock_model.generate_content.side_effect = [
             Mock(text="Blueprint"),
-            Mock(text="""
+            Mock(
+                text="""
 ```python
 def aggregate_all_data(df):
     return {"kpi": {}, "charts": {}}
@@ -334,7 +342,8 @@ def aggregate_all_data(df):
 ```html
 <!DOCTYPE html><html><body></body></html>
 ```
-""")
+"""
+            ),
         ]
 
         progress_calls = []
