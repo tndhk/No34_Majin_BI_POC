@@ -2,3 +2,8 @@ streamlit
 pandas
 google-generativeai
 python-dotenv
+
+# Testing
+pytest>=7.0.0
+pytest-cov
+pytest-mock
