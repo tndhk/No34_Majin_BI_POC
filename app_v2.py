@@ -19,34 +19,334 @@ load_dotenv()
 
 # Page Config
 st.set_page_config(
-    page_title="Data BI Analytics",
-    page_icon="📊",
+    page_title="Majin Analytics - AI Data Oracle",
+    page_icon="🧞‍♂️",
     layout="wide"
 )
 
-# Custom CSS
+# Custom CSS - Majin Oracle Theme
 st.markdown("""
 <style>
+    @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=Fira+Code:wght@400;500&display=swap');
+
+    /* ═══════════════════════════════════════════════════════════
+       MAJIN ORACLE - Mystical Data Sorcery Theme
+    ═══════════════════════════════════════════════════════════ */
+
+    :root {
+        --void-deep: #06060a;
+        --void-surface: #0d0d14;
+        --void-elevated: #14141f;
+        --void-border: #1e1e2e;
+        --oracle-cyan: #00e5ff;
+        --oracle-cyan-dim: #00b8cc;
+        --oracle-gold: #fbbf24;
+        --oracle-gold-dim: #d97706;
+        --oracle-purple: #a855f7;
+        --text-primary: #f0f0f5;
+        --text-secondary: #9090a0;
+        --text-muted: #606070;
+        --glow-cyan: 0 0 30px rgba(0, 229, 255, 0.3);
+        --glow-gold: 0 0 20px rgba(251, 191, 36, 0.25);
+    }
+
+    /* Global dark theme */
+    .stApp {
+        background: linear-gradient(145deg, var(--void-deep) 0%, #0a0a12 50%, var(--void-deep) 100%) !important;
+    }
+
+    .stApp::before {
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background:
+            radial-gradient(ellipse at 20% 20%, rgba(0, 229, 255, 0.03) 0%, transparent 50%),
+            radial-gradient(ellipse at 80% 80%, rgba(168, 85, 247, 0.03) 0%, transparent 50%),
+            radial-gradient(ellipse at 50% 50%, rgba(251, 191, 36, 0.02) 0%, transparent 70%);
+        pointer-events: none;
+        z-index: 0;
+    }
+
+    [data-testid="stSidebar"] {
+        background: var(--void-surface) !important;
+        border-right: 1px solid var(--void-border) !important;
+    }
+
+    [data-testid="stSidebar"] * {
+        color: var(--text-secondary) !important;
+    }
+
+    [data-testid="stSidebar"] .stTextInput input,
+    [data-testid="stSidebar"] .stSelectbox > div > div {
+        background: var(--void-elevated) !important;
+        border: 1px solid var(--void-border) !important;
+        color: var(--text-primary) !important;
+    }
+
+    .main .block-container {
+        padding-top: 2rem;
+        max-width: 1600px;
+    }
+
+    /* Typography */
     .main-header {
-        font-size: 2.2rem;
-        color: #1e3a8a;
-        font-weight: 800;
-        margin-bottom: 0.5rem;
+        font-family: 'Cormorant Garamond', Georgia, serif;
+        font-size: 2.8rem;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        background: linear-gradient(135deg, var(--oracle-cyan) 0%, var(--oracle-gold) 50%, var(--oracle-purple) 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: 0.25rem;
+        display: inline-block;
     }
+
     .sub-header {
+        font-family: 'DM Sans', system-ui, sans-serif;
         font-size: 1rem;
-        color: #64748b;
-        margin-bottom: 1.5rem;
+        color: var(--text-secondary);
+        margin-bottom: 2rem;
+        font-weight: 400;
+        line-height: 1.6;
     }
+
+    /* Section headers */
+    .stMarkdown h3 {
+        font-family: 'Cormorant Garamond', Georgia, serif !important;
+        font-size: 1.4rem !important;
+        font-weight: 600 !important;
+        color: var(--text-primary) !important;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid var(--void-border);
+    }
+
+    .stMarkdown h3::before {
+        content: '◆';
+        color: var(--oracle-cyan);
+        margin-right: 0.6rem;
+        font-size: 0.75rem;
+        opacity: 0.8;
+    }
+
+    /* Progress bar */
     .stProgress > div > div > div > div {
-        background-color: #3b82f6;
+        background: linear-gradient(90deg, var(--oracle-cyan-dim), var(--oracle-cyan)) !important;
+        box-shadow: var(--glow-cyan);
     }
+
+    /* Chat container */
     .chat-container {
-        background: #f8fafc;
-        border-radius: 0.5rem;
-        padding: 1rem;
+        background: var(--void-elevated);
+        border: 1px solid var(--void-border);
+        border-radius: 1rem;
+        padding: 1.25rem;
         height: 500px;
         overflow-y: auto;
+    }
+
+    .chat-container::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .chat-container::-webkit-scrollbar-track {
+        background: var(--void-deep);
+    }
+
+    .chat-container::-webkit-scrollbar-thumb {
+        background: var(--void-border);
+        border-radius: 3px;
+    }
+
+    /* Chat messages */
+    [data-testid="stChatMessage"] {
+        background: var(--void-elevated) !important;
+        border: 1px solid var(--void-border) !important;
+        border-radius: 0.75rem !important;
+        margin-bottom: 0.75rem;
+    }
+
+    [data-testid="stChatMessage"] * {
+        color: var(--text-secondary) !important;
+    }
+
+    [data-testid="stChatMessageContent"] p {
+        font-family: 'DM Sans', system-ui, sans-serif !important;
+    }
+
+    /* Chat input */
+    [data-testid="stChatInput"] {
+        background: var(--void-elevated) !important;
+        border: 1px solid var(--void-border) !important;
+        border-radius: 0.75rem !important;
+    }
+
+    [data-testid="stChatInput"] textarea {
+        background: transparent !important;
+        color: var(--text-primary) !important;
+        font-family: 'DM Sans', system-ui, sans-serif !important;
+    }
+
+    /* File uploader */
+    [data-testid="stFileUploader"] {
+        background: var(--void-elevated) !important;
+        border: 2px dashed var(--void-border) !important;
+        border-radius: 1rem !important;
+        padding: 1.5rem !important;
+        transition: all 0.3s ease;
+    }
+
+    [data-testid="stFileUploader"]:hover {
+        border-color: var(--oracle-cyan-dim) !important;
+        box-shadow: inset 0 0 30px rgba(0, 229, 255, 0.05);
+    }
+
+    [data-testid="stFileUploader"] * {
+        color: var(--text-secondary) !important;
+    }
+
+    /* Buttons */
+    .stButton > button {
+        font-family: 'DM Sans', system-ui, sans-serif !important;
+        font-weight: 600 !important;
+        letter-spacing: 0.03em !important;
+        text-transform: uppercase !important;
+        font-size: 0.8rem !important;
+        padding: 0.7rem 1.5rem !important;
+        border-radius: 0.5rem !important;
+        border: none !important;
+        background: linear-gradient(135deg, var(--oracle-cyan-dim) 0%, var(--oracle-cyan) 100%) !important;
+        color: var(--void-deep) !important;
+        box-shadow: var(--glow-cyan) !important;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    }
+
+    .stButton > button:hover {
+        transform: translateY(-2px) !important;
+        box-shadow: 0 0 40px rgba(0, 229, 255, 0.5) !important;
+    }
+
+    .stButton > button[kind="primary"] {
+        background: linear-gradient(135deg, var(--oracle-gold-dim) 0%, var(--oracle-gold) 100%) !important;
+        box-shadow: var(--glow-gold) !important;
+    }
+
+    .stButton > button[kind="primary"]:hover {
+        box-shadow: 0 0 40px rgba(251, 191, 36, 0.5) !important;
+    }
+
+    /* DataFrame */
+    [data-testid="stDataFrame"] {
+        background: var(--void-elevated) !important;
+        border-radius: 0.75rem !important;
+        border: 1px solid var(--void-border) !important;
+    }
+
+    [data-testid="stDataFrame"] * {
+        font-family: 'Fira Code', monospace !important;
+        font-size: 0.85rem !important;
+    }
+
+    /* Alerts */
+    .stSuccess {
+        background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(16, 185, 129, 0.05) 100%) !important;
+        border-left: 3px solid #10b981 !important;
+        color: #6ee7b7 !important;
+    }
+
+    .stWarning {
+        background: linear-gradient(135deg, rgba(251, 191, 36, 0.1) 0%, rgba(251, 191, 36, 0.05) 100%) !important;
+        border-left: 3px solid var(--oracle-gold) !important;
+        color: var(--oracle-gold) !important;
+    }
+
+    .stError {
+        background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(239, 68, 68, 0.05) 100%) !important;
+        border-left: 3px solid #ef4444 !important;
+        color: #fca5a5 !important;
+    }
+
+    /* Tabs */
+    .stTabs [data-baseweb="tab-list"] {
+        background: var(--void-surface) !important;
+        border-radius: 0.75rem !important;
+        padding: 0.25rem !important;
+        gap: 0.25rem !important;
+    }
+
+    .stTabs [data-baseweb="tab"] {
+        font-family: 'DM Sans', system-ui, sans-serif !important;
+        font-weight: 500 !important;
+        color: var(--text-secondary) !important;
+        border-radius: 0.5rem !important;
+    }
+
+    .stTabs [aria-selected="true"] {
+        background: var(--void-elevated) !important;
+        color: var(--oracle-cyan) !important;
+    }
+
+    /* Expander */
+    .streamlit-expanderHeader {
+        font-family: 'DM Sans', system-ui, sans-serif !important;
+        font-weight: 500 !important;
+        color: var(--text-secondary) !important;
+        background: var(--void-elevated) !important;
+        border-radius: 0.5rem !important;
+    }
+
+    /* Markdown text */
+    .stMarkdown p, .stMarkdown li {
+        color: var(--text-secondary) !important;
+        font-family: 'DM Sans', system-ui, sans-serif !important;
+        line-height: 1.6 !important;
+    }
+
+    .stMarkdown strong {
+        color: var(--text-primary) !important;
+    }
+
+    .stMarkdown code {
+        background: var(--void-elevated) !important;
+        color: var(--oracle-cyan) !important;
+        padding: 0.2em 0.4em !important;
+        border-radius: 0.25rem !important;
+        font-family: 'Fira Code', monospace !important;
+    }
+
+    /* Download button */
+    .stDownloadButton > button {
+        background: var(--void-elevated) !important;
+        border: 1px solid var(--void-border) !important;
+        color: var(--text-primary) !important;
+        box-shadow: none !important;
+    }
+
+    .stDownloadButton > button:hover {
+        border-color: var(--oracle-cyan-dim) !important;
+        color: var(--oracle-cyan) !important;
+        box-shadow: var(--glow-cyan) !important;
+    }
+
+    /* Spinner */
+    .stSpinner > div {
+        border-color: var(--oracle-cyan) transparent transparent transparent !important;
+    }
+
+    /* Horizontal rule */
+    hr {
+        border: none !important;
+        height: 1px !important;
+        background: linear-gradient(90deg, transparent, var(--void-border), transparent) !important;
+        margin: 1.5rem 0 !important;
+    }
+
+    /* Hide Streamlit branding */
+    #MainMenu, footer, header {
+        visibility: hidden;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -207,9 +507,14 @@ def main():
     """メイン関数"""
     init_session_state()
 
-    # Header
-    st.markdown('<div class="main-header">📊 Data BI Analytics</div>', unsafe_allow_html=True)
-    st.markdown('<div class="sub-header">CSVをアップロードして、AIがダッシュボードを自動生成。その後、対話で深掘り分析。</div>', unsafe_allow_html=True)
+    # Header with mystical styling
+    st.markdown('''
+    <div class="main-header">
+        <span style="font-size: 2.4rem; margin-right: 0.5rem;">🧞‍♂️</span>
+        Majin Analytics
+    </div>
+    ''', unsafe_allow_html=True)
+    st.markdown('<div class="sub-header">CSVをアップロードして、AIオラクルがダッシュボードを召喚。<br/>その後、対話で深層分析を探求。</div>', unsafe_allow_html=True)
 
     # Sidebar: Configuration
     with st.sidebar:
