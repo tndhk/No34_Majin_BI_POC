@@ -54,7 +54,7 @@ Gemini 2.0 (or Pro) を活用し、[majin式GemBI.md](majin式GemBI.md) で定�
 
 1.  **アプリケーションの起動**
     ```bash
-    streamlit run app.py
+    streamlit run app_v2.py
     ```
     自動的にブラウザが開き、アプリが起動します。
 

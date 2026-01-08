@@ -145,7 +145,7 @@
 #### 5. AIインサイトの制御と表示 (AI Integration & Exact Strings)
 * **Immutable API Key Declaration:** APIキーの定義行は、**一字一句変更せず、以下のコードをそのまま出力してください。** いかなるプレースホルダー（`YOUR_KEY`等）や環境変数（`process.env`等）も使用禁止です。
     * `const apiKey = ""; // APIキーは実行環境から提供されます`
-* **Model Specification (CRITICAL):** 使用するモデルは **`gemini-2.5-flash-preview-09-2025`** です。APIリクエストのURLには必ずこの**正確なバージョン文字列**を使用してください。短縮形の `gemini-2.5-flash` や `gemini-pro` は動作しないため使用禁止です。
+* **Model Specification (CRITICAL):** 使用するモデルは **`gemini-2.5-flash`** です。APIリクエストのURLには必ずこの**正確なバージョン文字列**を使用してください。これは2026年1月時点の最新安定版モデルです。
 * **Robust Retry Logic:** API呼び出し時は、通信エラーだけでなく**レスポンスの中身（candidates配列やtextの欠損）も検証**してください。不正なレスポンスの場合もエラーとみなし、**最大3回まで指数バックオフ**（例: 1秒, 2秒, 4秒待機）を用いてリトライする堅牢なフェッチ関数を実装してください。
 * **Robust Markdown Parser (必須):** AIからの回答（Markdown形式）をそのまま表示することは厳禁です。必ず **`marked.js` ライブラリ** を使用してHTMLに変換してください。単純な文字列置換ではなく、ライブラリのパーサーを通すことで、複雑なテーブルやネストされたリストを正しく描画させます。
 * **Professional Styling:** AI出力エリア（`.prose-ai`）に対し、以下のCSSスタイル定義を義務付けます。
@@ -1385,7 +1385,7 @@
                     }
                 };
 
-                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
                 
                 // Use the new robust fetch function
                 const data = await fetchAndValidate(url, {

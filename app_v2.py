@@ -520,21 +520,27 @@ def main():
     # Sidebar: Configuration
     with st.sidebar:
         st.header("⚙️ 設定")
-        api_key_env = os.getenv("GOOGLE_API_KEY")
-        api_key = st.text_input(
-            "Google API Key",
-            value=api_key_env if api_key_env else "",
-            type="password"
-        )
-
+        
         model_name = st.selectbox(
             "モデル",
-            ["gemini-2.5-flash-preview-05-20", "gemini-2.0-flash-exp"],
-            index=0
+            [
+                "gemini-2.5-flash",  # 最新安定版（推奨）
+                "gemini-3-flash-preview",  # 次世代モデル（実験版）
+                "gemini-2.5-flash-lite",  # 軽量版（高速・低コスト）
+                "gemini-2.0-flash-exp",  # 旧世代実験版
+            ],
+            index=0,
+            help="gemini-2.5-flashが推奨（2026年1月時点の最新安定版）"
         )
 
-        if not api_key:
-            st.warning("APIキーを入力してください")
+        st.markdown("---")
+        st.markdown("### Status")
+        api_key = os.getenv("GOOGLE_API_KEY")
+        if api_key:
+            st.success("API Key: Configured")
+        else:
+            st.error("API Key: Missing")
+            st.info("Please set GOOGLE_API_KEY in .env file")
             st.stop()
 
     # Configure GenAI
