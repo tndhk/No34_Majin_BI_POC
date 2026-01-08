@@ -1,13 +1,15 @@
-import streamlit as st
-import pandas as pd
-import google.generativeai as genai
-import os
-from dotenv import load_dotenv
-from io import StringIO
-import prompts
-import streamlit.components.v1 as components
 import json
+import os
 import traceback
+from io import StringIO
+
+import google.generativeai as genai
+import pandas as pd
+import streamlit as st
+import streamlit.components.v1 as components
+from dotenv import load_dotenv
+
+import prompts
 
 # Load environment variables
 load_dotenv()
@@ -425,13 +427,13 @@ with st.sidebar:
     st.header("Configuration")
     api_key_env = os.getenv("GOOGLE_API_KEY")
     api_key = st.text_input("Google API Key", value=api_key_env if api_key_env else "", type="password")
-    
+
     model_name = st.selectbox(
         "Generator Model",
         ["gemini-2.5-flash-preview-09-2025", "gemini-2.5-flash-lite-latest", "gemini-2.0-flash-exp"],
         index=0
     )
-    
+
     st.info("Note: The generated dashboard will use `gemini-2.5-flash-preview-09-2025` internally as per specification.")
 
     if not api_key:
@@ -461,20 +463,20 @@ if uploaded_file:
         uploaded_file.seek(0)
         try:
             full_text = uploaded_file.read().decode('shift_jis')
-        except:
-             uploaded_file.seek(0)
-             full_text = uploaded_file.read().decode('utf-8')
-        
+        except UnicodeDecodeError:
+            uploaded_file.seek(0)
+            full_text = uploaded_file.read().decode('utf-8')
+
         st.session_state.full_csv_text = full_text
 
         # Read a subset for analysis (Pandas)
         uploaded_file.seek(0)
         try:
             df = pd.read_csv(uploaded_file, nrows=50, encoding='shift_jis')
-        except:
+        except UnicodeDecodeError:
             uploaded_file.seek(0)
             df = pd.read_csv(uploaded_file, nrows=50, encoding='utf-8')
-        
+
         st.success(f"Loaded successfully! Columns: {len(df.columns)}, Sample Rows: {len(df)}")
         st.dataframe(df.head())
 
@@ -483,7 +485,7 @@ if uploaded_file:
         df.head(5).to_csv(buffer, index=False)
         sample_csv = buffer.getvalue()
         columns_str = ", ".join(df.columns.tolist())
-        
+
         st.session_state.csv_summary = {
             "columns": columns_str,
             "sample": sample_csv
@@ -502,9 +504,9 @@ else:
 if st.session_state.csv_summary:
     st.markdown("---")
     st.markdown("### Step 2: Analyze & Blueprint")
-    
+
     col1, col2 = st.columns([1, 2])
-    
+
     with col1:
         st.markdown("""
         **Phase 1 Analysis:**
@@ -514,12 +516,12 @@ if st.session_state.csv_summary:
             with st.spinner("Analyzing data structure..."):
                 try:
                     model = genai.GenerativeModel(model_name=model_name, system_instruction=prompts.SYSTEM_PROMPT)
-                    
+
                     prompt = prompts.PHASE1_PROMPT_TEMPLATE.format(
                         columns=st.session_state.csv_summary["columns"],
                         sample_data=st.session_state.csv_summary["sample"]
                     )
-                    
+
                     response = model.generate_content(prompt)
                     st.session_state.blueprint = response.text
                     st.session_state.generated_html = None # Reset downstream
@@ -537,9 +539,9 @@ if st.session_state.csv_summary:
 if st.session_state.blueprint:
     st.markdown("---")
     st.markdown("### Step 3: Dashboard Visualization")
-    
+
     st.markdown("Generate the application and visualize it directly below.")
-    
+
     if st.button("✨ Generate & Visualize", type="primary"):
         if not st.session_state.full_csv_text:
             st.error("Please upload a CSV file first.")
@@ -549,10 +551,10 @@ if st.session_state.blueprint:
                     # 1. Generate Codes
                     model = genai.GenerativeModel(model_name=model_name, system_instruction=prompts.SYSTEM_PROMPT)
                     prompt = prompts.PHASE2_PROMPT_TEMPLATE.replace("{{BLUEPRINT}}", st.session_state.blueprint)
-                    
+
                     response = model.generate_content(prompt, generation_config={"max_output_tokens": 8192})
                     content = response.text
-                    
+
                     # 2. Extract Python and HTML Blocks
                     py_code = ""
                     html_code = ""
@@ -560,12 +562,12 @@ if st.session_state.blueprint:
                         py_code = content.split("```python")[1].split("```")[0].strip()
                     if "```html" in content:
                         html_code = content.split("```html")[1].split("```")[0].strip()
-                    
+
                     if not py_code or not html_code:
                         st.error("Failed to generate code blocks. Please try again.")
                         st.expander("AI Response").write(content)
                         st.stop()
-                    
+
                     # 3. Execute Python Aggregation
                     # Load data into DataFrame
                     try:
@@ -573,18 +575,18 @@ if st.session_state.blueprint:
                         # We try to detect the encoding again or use the one from state if we stored it
                         # Since we have full_csv_text, let's just use StringIO
                         df_full = pd.read_csv(StringIO(st.session_state.full_csv_text))
-                        
+
                         # Prepare local scope for execution
                         local_scope = {"pd": pd, "df": df_full}
                         exec(py_code, {}, local_scope)
-                        
+
                         if "aggregate_all_data" not in local_scope:
                             st.error("AI failed to define 'aggregate_all_data' function.")
                             st.stop()
-                        
+
                         aggregated_data = local_scope["aggregate_all_data"](df_full)
                         json_data = json.dumps(aggregated_data, ensure_ascii=False)
-                        
+
                     except Exception as e:
                         st.error(f"Execution Error (Python): {e}")
                         st.code(py_code, language="python")
@@ -592,41 +594,41 @@ if st.session_state.blueprint:
 
                     # 4. Inject JSON and Shims into HTML
                     final_html = html_code.replace("{{JSON_DATA}}", json_data)
-                    
+
                     # Add Direct View Auto-load Shim
-                    injection_script = f"""
+                    injection_script = """
                     <script>
                         // Overwrite window.onload to skip splash and init with data
                         const originalOnLoad = window.onload;
-                        window.onload = function() {{
+                        window.onload = function() {
                             if (originalOnLoad) originalOnLoad();
                             console.log("Direct View: Dashboard data injected.");
                             document.getElementById('initialSplash').classList.add('hidden');
                             if (typeof renderCharts === 'function') renderCharts();
                             // If there are other initialization functions, call them here
-                        }};
+                        };
                     </script>
                     """
                     final_html = final_html.replace("</body>", f"{injection_script}</body>")
-                    
+
                     st.session_state.generated_html = final_html
                     st.balloons()
-                    
+
                 except Exception as e:
                     st.error(f"Generation Error: {e}")
                     st.write(traceback.format_exc())
 
     if st.session_state.generated_html:
         st.success("Dashboard Generated with Python Optimization!")
-        
+
         # Tabs for View vs Download
         tab1, tab2 = st.tabs(["👁️ Direct View", "📥 Download HTML"])
-        
+
         with tab1:
             st.caption("The dashboard is running in an isolated container below. You can interact with it full-screen.")
             # Render HTML iframe
             components.html(st.session_state.generated_html, height=1200, scrolling=True)
-            
+
         with tab2:
             st.download_button(
                 label="Download HTML Dashboard (Standalone)",

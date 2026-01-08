@@ -3,16 +3,17 @@ Data BI Analytics App v2
 
 ワンショット生成 + 対話型分析
 """
-import streamlit as st
-import pandas as pd
-import google.generativeai as genai
 import os
-from dotenv import load_dotenv
-import streamlit.components.v1 as components
 
-from src.services.data_processor import DataProcessor
+import google.generativeai as genai
+import pandas as pd
+import streamlit as st
+import streamlit.components.v1 as components
+from dotenv import load_dotenv
+
 from src.services.ai_generator import AIGenerator
-from src.services.chat_handler import ChatHandler, Intent
+from src.services.chat_handler import ChatHandler
+from src.services.data_processor import DataProcessor
 
 # Load environment variables
 load_dotenv()
