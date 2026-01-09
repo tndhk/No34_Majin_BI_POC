@@ -6,3 +6,5 @@ __pycache__/
 .streamlit/
 *.csv
 majin_analytics_dashboard.html
+
+memories/
