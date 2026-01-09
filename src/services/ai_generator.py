@@ -17,6 +17,8 @@ from typing import Any
 
 import pandas as pd
 
+from prompts import PHASE2_PROMPT_TEMPLATE
+
 
 @dataclass
 class GenerationResult:
@@ -80,35 +82,23 @@ Markdown形式で出力してください。
         Raises:
             ValueError: コードブロックが見つからない場合
         """
-        prompt = f"""
-以下のBlueprintに基づいて、PythonコードとHTMLダッシュボードを生成してください。
-
-## Blueprint
-{blueprint}
-
-## 出力形式
-```python
-def aggregate_all_data(df):
-    # 集計ロジック
-    return {{"kpi": {{}}, "charts": {{}}}}
-```
-
-```html
-<!DOCTYPE html>
-<html>...</html>
-```
-"""
+        prompt = PHASE2_PROMPT_TEMPLATE.replace("{{BLUEPRINT}}", blueprint)
         response = self.model.generate_content(prompt)
         content = response.text
 
-        # Pythonコードを抽出
-        py_match = re.search(r"```python\s*(.*?)\s*```", content, re.DOTALL)
+        # Pythonコードを抽出（柔軟なパターン）
+        py_match = re.search(r"`{3,}\s*python\s*\n(.*?)\n`{3,}", content, re.DOTALL | re.IGNORECASE)
         if not py_match:
             raise ValueError("Pythonコードブロックが見つかりません")
         py_code = py_match.group(1).strip()
 
-        # HTMLコードを抽出
-        html_match = re.search(r"```html\s*(.*?)\s*```", content, re.DOTALL)
+        # HTMLコードを抽出（柔軟なパターン）
+        html_match = re.search(r"`{3,}\s*html?\s*\n(.*?)\n`{3,}", content, re.DOTALL | re.IGNORECASE)
+
+        # フォールバック: HTMLタグで直接検索
+        if not html_match:
+            html_match = re.search(r"(<!DOCTYPE html>.*?</html>)", content, re.DOTALL | re.IGNORECASE)
+
         if not html_match:
             raise ValueError("HTMLコードブロックが見つかりません")
         html_code = html_match.group(1).strip()
@@ -131,13 +121,13 @@ def aggregate_all_data(df):
             Exception: 実行時エラー
         """
         # コードを実行
-        local_scope = {"pd": pd, "df": df}
-        exec(py_code, {}, local_scope)
+        scope = {"pd": pd, "df": df}
+        exec(py_code, scope, scope)
 
-        if "aggregate_all_data" not in local_scope:
+        if "aggregate_all_data" not in scope:
             raise ValueError("aggregate_all_data 関数が定義されていません")
 
-        return local_scope["aggregate_all_data"](df)
+        return scope["aggregate_all_data"](df)
 
     def assemble_html(self, html_template: str, data: dict[str, Any]) -> str:
         """
