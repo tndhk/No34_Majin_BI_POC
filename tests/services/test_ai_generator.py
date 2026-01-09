@@ -65,7 +65,7 @@ def aggregate_all_data(df):
         )
 
         generator = AIGenerator(model=mock_model)
-        py_code, html_code = generator.generate_code("Blueprint here")
+        py_code, html_code = generator.generate_code("Blueprint here", sample_dataframe)
 
         assert isinstance(py_code, str)
         assert isinstance(html_code, str)
@@ -88,7 +88,7 @@ def aggregate_all_data(df):
         )
 
         generator = AIGenerator(model=mock_model)
-        py_code, _ = generator.generate_code("Blueprint")
+        py_code, _ = generator.generate_code("Blueprint", sample_dataframe)
 
         assert "def aggregate_all_data" in py_code
         assert "return result" in py_code
@@ -114,12 +114,12 @@ def aggregate_all_data(df):
         )
 
         generator = AIGenerator(model=mock_model)
-        _, html_code = generator.generate_code("Blueprint")
+        _, html_code = generator.generate_code("Blueprint", sample_dataframe)
 
         assert "<!DOCTYPE html>" in html_code
         assert "<html>" in html_code
 
-    def test_generate_code_raises_on_missing_python(self):
+    def test_generate_code_raises_on_missing_python(self, sample_dataframe):
         """Pythonブロックがない場合はエラー"""
         mock_model = Mock()
         mock_model.generate_content.return_value = Mock(
@@ -133,9 +133,9 @@ def aggregate_all_data(df):
         generator = AIGenerator(model=mock_model)
 
         with pytest.raises(ValueError, match="Python"):
-            generator.generate_code("Blueprint")
+            generator.generate_code("Blueprint", sample_dataframe)
 
-    def test_generate_code_raises_on_missing_html(self):
+    def test_generate_code_raises_on_missing_html(self, sample_dataframe):
         """HTMLブロックがない場合はエラー"""
         mock_model = Mock()
         mock_model.generate_content.return_value = Mock(
@@ -150,7 +150,28 @@ def aggregate_all_data(df):
         generator = AIGenerator(model=mock_model)
 
         with pytest.raises(ValueError, match="HTML"):
-            generator.generate_code("Blueprint")
+            generator.generate_code("Blueprint", sample_dataframe)
+
+    def test_generate_code_injects_columns_to_prompt(self, sample_dataframe):
+        """プロンプトにカラム情報が含まれる"""
+        mock_model = Mock()
+        mock_model.generate_content.return_value = Mock(
+            text="""
+```python
+def aggregate_all_data(df): return {}
+```
+```html
+<!DOCTYPE html><html></html>
+```
+"""
+        )
+
+        generator = AIGenerator(model=mock_model)
+        generator.generate_code("Blueprint", sample_dataframe)
+
+        call_args = mock_model.generate_content.call_args[0][0]
+        assert "売上" in call_args
+        assert "日付" in call_args
 
 
 class TestAIGeneratorExecution:

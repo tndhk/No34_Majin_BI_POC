@@ -19,7 +19,68 @@ from typing import Any
 
 import pandas as pd
 
-from prompts import PHASE2_PROMPT_TEMPLATE
+from prompts import PHASE1_PROMPT_TEMPLATE, PHASE2_PROMPT_TEMPLATE
+
+
+CHART_SAFETY_NET_SCRIPT = """
+<script src="https://unpkg.com/lucide@latest"></script>
+<script>
+(function() {
+    // === Chart.js Safety Net (Injected by AIGenerator) ===
+    try {
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
+        
+        if (typeof Chart !== 'undefined') {
+            Chart.defaults.color = '#cbd5e1';
+            Chart.defaults.borderColor = '#334155';
+            Chart.defaults.font.family = "'DM Sans', sans-serif";
+        }
+        
+        if (!window.ORACLE_COLORS) {
+            window.ORACLE_COLORS = [
+                '#38bdf8', '#fbbf24', '#818cf8', '#34d399', '#f472b6',
+                '#2dd4bf', '#a78bfa', '#fb923c', '#9ca3af', '#60a5fa'
+            ];
+        }
+
+        
+        if (!window.assignOracleColors) {
+            window.assignOracleColors = function(chartData, index) {
+                var colors = window.ORACLE_COLORS;
+                var color = colors[index % colors.length];
+                if (!chartData || !chartData.datasets) return chartData;
+                chartData.datasets.forEach(function(ds) {
+                    if (ds.type === 'pie' || ds.type === 'doughnut') {
+                        ds.backgroundColor = ds.backgroundColor || colors;
+                        ds.borderColor = ds.borderColor || '#1e293b';
+                    } else {
+                        ds.backgroundColor = ds.backgroundColor || color;
+                        ds.borderColor = ds.borderColor || color;
+                    }
+                });
+                return chartData;
+            };
+        }
+    } catch (e) {
+        console.error('Chart.js Safety Net Error:', e);
+    }
+})();
+</script>
+"""
+
+DIRECT_VIEW_SCRIPT = """
+<script>
+    // Direct View: Auto-initialize dashboard
+    const originalOnLoad = window.onload;
+    window.onload = function() {
+        if (originalOnLoad) originalOnLoad();
+        console.log("Direct View: Dashboard initialized");
+        if (typeof renderCharts === 'function') renderCharts();
+    };
+</script>
+"""
 
 
 def _safe_tolist(obj: Any) -> list[Any]:
@@ -218,26 +279,20 @@ class AIGenerator:
         df.head(5).to_csv(buffer, index=False)
         sample_data = buffer.getvalue()
 
-        prompt = f"""
-以下のデータ構造を持つCSVファイルを分析し、20個以上のグラフ構成案を提案してください。
-
-## データ要約
-- カラム名: {columns_str}
-- データサンプル (5行):
-{sample_data}
-
-## 出力フォーマット
-Markdown形式で出力してください。
-"""
+        prompt = PHASE1_PROMPT_TEMPLATE.format(
+            columns=columns_str,
+            sample_data=sample_data
+        )
         response = self.model.generate_content(prompt)
         return response.text
 
-    def generate_code(self, blueprint: str) -> tuple[str, str]:
+    def generate_code(self, blueprint: str, df: pd.DataFrame) -> tuple[str, str]:
         """
         Blueprintからコードを生成する
 
         Args:
             blueprint: 承認されたBlueprint
+            df: データフレーム（カラム名参照用）
 
         Returns:
             Tuple[str, str]: (Python集計コード, HTMLダッシュボード)
@@ -245,7 +300,10 @@ Markdown形式で出力してください。
         Raises:
             ValueError: コードブロックが見つからない場合
         """
-        prompt = PHASE2_PROMPT_TEMPLATE.replace("{{BLUEPRINT}}", blueprint)
+        # カラムリストを文字列化 (Ground Truth)
+        columns_str = ", ".join(df.columns.tolist())
+        
+        prompt = PHASE2_PROMPT_TEMPLATE.replace("{{BLUEPRINT}}", blueprint).replace("{{COLUMNS}}", columns_str)
         response = self.model.generate_content(prompt)
         content = response.text
 
@@ -323,6 +381,31 @@ Markdown形式で出力してください。
         extracted = _extract_python_code(content)
         return extracted or content
 
+    def _create_scope(self, df: pd.DataFrame) -> dict[str, Any]:
+        return {
+            "pd": pd,
+            "df": df,
+            "_safe_tolist": _safe_tolist,
+            "_safe_mul": _safe_mul,
+            "_safe_fillna": _safe_fillna,
+        }
+
+    def _exec_code_safe(self, code: str, original_code: str, scope: dict[str, Any]) -> None:
+        try:
+            exec(code, scope, scope)
+        except SyntaxError as e:
+            repaired = self._repair_python_code(original_code, e)
+            if not repaired:
+                msg = _format_syntax_error(e, code)
+                raise ValueError(f"生成された集計コードに構文エラーがあります: {msg}") from e
+            
+            repaired_code = _rewrite_generated_calls(repaired)
+            try:
+                exec(repaired_code, scope, scope)
+            except SyntaxError as re:
+                msg = _format_syntax_error(re, repaired_code)
+                raise ValueError(f"修正後の集計コードに構文エラーがあります: {msg}") from re
+
     def execute_aggregation(self, py_code: str, df: pd.DataFrame) -> dict[str, Any]:
         """
         Python集計コードを実行する
@@ -338,39 +421,10 @@ Markdown形式で出力してください。
             ValueError: aggregate_all_data関数が定義されていない場合
             Exception: 実行時エラー
         """
-        # コードを実行
         normalized_code = _rewrite_generated_calls(py_code)
-        scope = {
-            "pd": pd,
-            "df": df,
-            "_safe_tolist": _safe_tolist,
-            "_safe_mul": _safe_mul,
-            "_safe_fillna": _safe_fillna,
-        }
-        try:
-            exec(normalized_code, scope, scope)
-        except SyntaxError as error:
-            repaired = self._repair_python_code(py_code, error)
-            if not repaired:
-                message = _format_syntax_error(error, normalized_code)
-                raise ValueError(
-                    f"生成された集計コードに構文エラーがあります: {message}"
-                ) from error
-            normalized_code = _rewrite_generated_calls(repaired)
-            scope = {
-                "pd": pd,
-                "df": df,
-                "_safe_tolist": _safe_tolist,
-                "_safe_mul": _safe_mul,
-                "_safe_fillna": _safe_fillna,
-            }
-            try:
-                exec(normalized_code, scope, scope)
-            except SyntaxError as repaired_error:
-                message = _format_syntax_error(repaired_error, normalized_code)
-                raise ValueError(
-                    f"修正後の集計コードに構文エラーがあります: {message}"
-                ) from repaired_error
+        scope = self._create_scope(df)
+
+        self._exec_code_safe(normalized_code, py_code, scope)
 
         if "aggregate_all_data" not in scope:
             raise ValueError("aggregate_all_data 関数が定義されていません")
@@ -383,23 +437,15 @@ Markdown形式で出力してください。
                 raise ValueError(
                     f"集計コードの実行に失敗しました: {_format_runtime_error(error)}"
                 ) from error
-            normalized_code = _rewrite_generated_calls(repaired)
-            scope = {
-                "pd": pd,
-                "df": df,
-                "_safe_tolist": _safe_tolist,
-                "_safe_mul": _safe_mul,
-                "_safe_fillna": _safe_fillna,
-            }
-            try:
-                exec(normalized_code, scope, scope)
-            except SyntaxError as repaired_error:
-                message = _format_syntax_error(repaired_error, normalized_code)
-                raise ValueError(
-                    f"修正後の集計コードに構文エラーがあります: {message}"
-                ) from repaired_error
+            
+            # Repaired code execution
+            normalized_repaired = _rewrite_generated_calls(repaired)
+            scope = self._create_scope(df)
+            self._exec_code_safe(normalized_repaired, repaired, scope)
+
             if "aggregate_all_data" not in scope:
                 raise ValueError("修正後のaggregate_all_data 関数が定義されていません")
+
             try:
                 return scope["aggregate_all_data"](df)
             except Exception as repaired_error:
@@ -432,77 +478,40 @@ Markdown形式で出力してください。
         else:
             # 2. フォールバック: プレースホルダーがない場合
             # const dashboardData = ... ; を探して置換
-            var_pattern = r"(const\s+dashboardData\s*=\s*)(.*?)(;)"
-            if re.search(var_pattern, html_template):
+            # DOTALLを使って複数行に対応
+            var_pattern = r"(const\s+dashboardData\s*=\s*)(.*?)(\s*;)"
+            
+            # 既存の dashboardData があるか確認（複数行対応）
+            match = re.search(var_pattern, html_template, re.DOTALL)
+            
+            if match:
                 # JSONデータが安全に置換されるようにエスケープ処理などは json.dumps で済んでいる
                 # 後方参照を使って variable 定義を書き換え
-                html = re.sub(var_pattern, f"\\1{json_data}\\3", html_template, count=1)
+                html = re.sub(var_pattern, f"\\1{json_data}\\3", html_template, count=1, flags=re.DOTALL)
             else:
                 # 3. 最終手段: scriptタグを強制挿入
-                # bodyの閉じタグの直前に挿入
-                injection_script = f"<script>const dashboardData = {json_data};</script>"
-                if "</body>" in html_template:
-                    html = html_template.replace("</body>", f"{injection_script}</body>")
+                # 既存の dashboardData が中途半端に存在して重複エラーになるのを防ぐため、念のため単純な置換も試みる
+                if "const dashboardData =" in html_template:
+                     # Regexで拾えなかったが文字列としては存在する場合、コメントアウトするなどして無効化したいが、
+                     # ここでは単純に追記モード（リスクあり）ではなく、警告をログに残すべきだが、
+                     # 実用上は injection_script を body 末尾に追加することで overwrite はできない（const再宣言エラーになる）。
+                     # なので、var_pattern を緩和して再トライ
+                     loose_pattern = r"const\s+dashboardData\s*="
+                     html = re.sub(loose_pattern, f"// replaced\nconst dashboardData = {json_data}; //", html_template, count=1)
                 else:
-                    html += injection_script
+                    # bodyの閉じタグの直前に挿入
+                    injection_script = f"<script>const dashboardData = {json_data};</script>"
+                    if "</body>" in html_template:
+                        html = html_template.replace("</body>", f"{injection_script}</body>")
+                    else:
+                        html += injection_script
+
 
         # Chart.js Safety Net: 常にカラー関数とデフォルト設定を注入
-        chart_safety_net = """
-<script>
-(function() {
-    // === Chart.js Safety Net (Injected by AIGenerator) ===
-    try {
-        if (typeof Chart !== 'undefined') {
-            Chart.defaults.color = '#cbd5e1';
-            Chart.defaults.borderColor = '#334155';
-            Chart.defaults.font.family = "'DM Sans', sans-serif";
-        }
-        
-        if (!window.ORACLE_COLORS) {
-            window.ORACLE_COLORS = [
-                '#38bdf8', '#fbbf24', '#818cf8', '#34d399', '#f472b6',
-                '#2dd4bf', '#a78bfa', '#fb923c', '#9ca3af', '#60a5fa'
-            ];
-        }
-        
-        if (!window.assignOracleColors) {
-            window.assignOracleColors = function(chartData, index) {
-                var colors = window.ORACLE_COLORS;
-                var color = colors[index % colors.length];
-                if (!chartData || !chartData.datasets) return chartData;
-                chartData.datasets.forEach(function(ds) {
-                    if (ds.type === 'pie' || ds.type === 'doughnut') {
-                        ds.backgroundColor = ds.backgroundColor || colors;
-                        ds.borderColor = ds.borderColor || '#1e293b';
-                    } else {
-                        ds.backgroundColor = ds.backgroundColor || color;
-                        ds.borderColor = ds.borderColor || color;
-                    }
-                });
-                return chartData;
-            };
-        }
-    } catch (e) {
-        console.error('Chart.js Safety Net Error:', e);
-    }
-})();
-</script>
-"""
-        html = html.replace("</body>", f"{chart_safety_net}</body>")
+        html = html.replace("</body>", f"{CHART_SAFETY_NET_SCRIPT}</body>")
 
         # Direct View用スクリプトを追加
-        direct_view_script = """
-<script>
-    // Direct View: Auto-initialize dashboard
-    const originalOnLoad = window.onload;
-    window.onload = function() {
-        if (originalOnLoad) originalOnLoad();
-        console.log("Direct View: Dashboard initialized");
-        if (typeof renderCharts === 'function') renderCharts();
-    };
-</script>
-"""
-        html = html.replace("</body>", f"{direct_view_script}</body>")
+        html = html.replace("</body>", f"{DIRECT_VIEW_SCRIPT}</body>")
 
         return html
 
@@ -530,7 +539,7 @@ Markdown形式で出力してください。
 
         # Step 2: コード生成
         notify(2, "ダッシュボードを設計中...")
-        py_code, html_template = self.generate_code(blueprint)
+        py_code, html_template = self.generate_code(blueprint, df)
 
         # Step 3: 集計実行
         notify(3, "データを集計中...")

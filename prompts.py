@@ -90,8 +90,7 @@ font-family-mono: 'JetBrains Mono', monospace;              /* 正確な数値�
 """
 
 PHASE1_PROMPT_TEMPLATE = """
-以下のデータ構造を持つCSVファイルがアップロードされました。
-このデータを分析し、「エグゼクティブが意思決定に使える」高度なグラフを20個設計してください。
+以下のデータ構造を持つCSVファイルを分析し、20個以上のグラフ構成案を提案してください。
 
 ## データ要約
 - カラム名: {columns}
@@ -99,20 +98,16 @@ PHASE1_PROMPT_TEMPLATE = """
 {sample_data}
 
 ## 出力フォーマット
-以下のMarkdown形式で出力してください。
-
-> **📊 Executive Insight Plan**
-> ...
-> **2. Visualization Strategy (All 20 Charts):**
-> | No. | Chart Title | Data Used | Chart Type | Executive Insight (狙い) |
-> | :-- | :-- | :-- | :-- | :-- |
-> ...
-
+Markdown形式で出力してください。
 """
 
 PHASE2_PROMPT_TEMPLATE = """
 ユーザーが以下の「可視化計画表」を承認しました。
 この計画に基づき、**「Pythonによるデータ集計ロジック」**と**「集計済みJSONを可視化するダッシュボードHTML」**を生成してください。
+
+## データ定義 (Ground Truth)
+以下のカラム名がCSVに存在します。集計コードでは必ずこれらの名称を正確に使用してください:
+{{COLUMNS}}
 
 ## 承認された計画 (Blueprint)
 {{BLUEPRINT}}

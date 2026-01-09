@@ -13,3 +13,4 @@ numpy
 ruff
 pre-commit
 mypy
+scipy
