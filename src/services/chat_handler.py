@@ -305,7 +305,7 @@ JSON形式のみで回答してください:
         else:
             grouped = df.groupby(x_col)[y_col].sum()
 
-        return {"labels": grouped.index.tolist(), "values": grouped.values.tolist()}
+        return {"labels": list(grouped.index), "values": list(grouped.values)}
 
     def generate_chart_html(self, spec: dict[str, Any], data: dict[str, Any]) -> str:
         """

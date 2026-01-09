@@ -8,6 +8,7 @@ AIGenerator - AI を使ったダッシュボード生成
 - ワンショット生成（統合）
 """
 
+import ast
 import json
 import re
 from collections.abc import Callable
@@ -18,6 +19,44 @@ from typing import Any
 import pandas as pd
 
 from prompts import PHASE2_PROMPT_TEMPLATE
+
+
+def _safe_tolist(obj: Any) -> list[Any]:
+    if hasattr(obj, "tolist"):
+        return obj.tolist()
+    if isinstance(obj, list):
+        return obj
+    try:
+        return list(obj)
+    except TypeError:
+        return [obj]
+
+
+class _ToListTransformer(ast.NodeTransformer):
+    def visit_Call(self, node: ast.Call) -> ast.AST:
+        self.generic_visit(node)
+        if (
+            isinstance(node.func, ast.Attribute)
+            and node.func.attr == "tolist"
+            and not node.args
+            and not node.keywords
+        ):
+            return ast.Call(
+                func=ast.Name(id="_safe_tolist", ctx=ast.Load()),
+                args=[node.func.value],
+                keywords=[],
+            )
+        return node
+
+
+def _rewrite_tolist_calls(py_code: str) -> str:
+    try:
+        tree = ast.parse(py_code)
+    except SyntaxError:
+        return py_code
+    tree = _ToListTransformer().visit(tree)
+    ast.fix_missing_locations(tree)
+    return ast.unparse(tree)
 
 
 @dataclass
@@ -121,8 +160,9 @@ Markdown形式で出力してください。
             Exception: 実行時エラー
         """
         # コードを実行
-        scope = {"pd": pd, "df": df}
-        exec(py_code, scope, scope)
+        normalized_code = _rewrite_tolist_calls(py_code)
+        scope = {"pd": pd, "df": df, "_safe_tolist": _safe_tolist}
+        exec(normalized_code, scope, scope)
 
         if "aggregate_all_data" not in scope:
             raise ValueError("aggregate_all_data 関数が定義されていません")
