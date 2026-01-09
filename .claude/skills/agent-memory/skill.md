@@ -12,6 +12,7 @@ A persistent memory space for storing knowledge that survives across conversatio
 ## Proactive Usage
 
 Save memories when you discover something worth preserving:
+
 - Research findings that took effort to uncover
 - Non-obvious patterns or gotchas in the codebase
 - Solutions to tricky problems
@@ -19,11 +20,13 @@ Save memories when you discover something worth preserving:
 - In-progress work that may be resumed later
 
 Check memories when starting related work:
+
 - Before investigating a problem area
 - When working on a feature you've touched before
 - When resuming work after a conversation break
 
 Organize memories when needed:
+
 - Consolidate scattered memories on the same topic
 - Remove outdated or superseded information
 - Update status field when work completes, gets blocked, or is abandoned
@@ -33,10 +36,12 @@ Organize memories when needed:
 When possible, organize memories into category folders. No predefined structure - create categories that make sense for the content.
 
 Guidelines:
+
 - Use kebab-case for folder and file names
 - Consolidate or reorganize as the knowledge base evolves
 
 Example:
+
 ```text
 memories/
 ├── file-processing/
@@ -54,20 +59,22 @@ This is just an example. Structure freely based on actual content.
 All memories must include frontmatter with a `summary` field. The summary should be concise enough to determine whether to read the full content.
 
 **Required:**
+
 ```yaml
 ---
-summary: "1-2 line description of what this memory contains"
-created: 2025-01-15  # YYYY-MM-DD format
+summary: '1-2 line description of what this memory contains'
+created: 2025-01-15 # YYYY-MM-DD format
 ---
 ```
 
 **Optional:**
+
 ```yaml
 ---
-summary: "Worker thread memory leak during large file processing - cause and solution"
+summary: 'Worker thread memory leak during large file processing - cause and solution'
 created: 2025-01-15
 updated: 2025-01-20
-status: in-progress  # in-progress | resolved | blocked | abandoned
+status: in-progress # in-progress | resolved | blocked | abandoned
 tags: [performance, worker, memory-leak]
 related: [src/core/file/fileProcessor.ts]
 ---
@@ -143,6 +150,7 @@ EOF
 ## Content Reference
 
 When writing detailed memories, consider including:
+
 - **Context**: Goal, background, constraints
 - **State**: What's done, in progress, or blocked
 - **Details**: Key files, commands, code snippets

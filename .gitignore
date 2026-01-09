@@ -8,3 +8,20 @@ __pycache__/
 majin_analytics_dashboard.html
 
 memories/
+
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+.wrangler/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS & Editor
+.idea/
+.vscode/
+*.swp

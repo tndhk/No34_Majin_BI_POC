@@ -4,8 +4,10 @@ description: Gitコミットメッセージ作成時に適用。Conventional Com
 ---
 
 ---
+
 trigger: model_decision
 description: Gitコミットメッセージ作成時に適用。Conventional Commits ベースの Prefix + 日本語サマリ + 箇条書き本文の書式ルール
+
 ---
 
 # Gitコミットメッセージの書式ルール
@@ -54,6 +56,7 @@ Prefix は、Conventional Commits における `type` に相当し、小文字�
 - revert: 取り消し
 
 Conventional Commits と同様に、必要に応じて `<Prefix>(scope):` の形式も許可します（例: `fix(translation): ...`）。
+
 - 詳細な仕様については、[Conventional Commits](https://www.conventionalcommits.org/) の公式ドキュメントも参照してください。
 
 ## サマリ（1行目）

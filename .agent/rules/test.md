@@ -19,11 +19,11 @@ These rules define the test process that **must** be followed whenever you imple
 
 ### Template example
 
-| Case ID | Input / Precondition | Perspective (Equivalence / Boundary) | Expected Result                               | Notes |
-|--------|----------------------|---------------------------------------|----------------------------------------------|-------|
+| Case ID | Input / Precondition | Perspective (Equivalence / Boundary) | Expected Result                                | Notes |
+| ------- | -------------------- | ------------------------------------ | ---------------------------------------------- | ----- |
 | TC-N-01 | Valid input A        | Equivalence – normal                 | Processing succeeds and returns expected value | -     |
-| TC-A-01 | NULL                 | Boundary – NULL                      | Validation error (required field)            | -     |
-| ...     | ...                  | ...                                   | ...                                          | ...   |
+| TC-A-01 | NULL                 | Boundary – NULL                      | Validation error (required field)              | -     |
+| ...     | ...                  | ...                                  | ...                                            | ...   |
 
 ---
 

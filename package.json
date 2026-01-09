@@ -1,0 +1,46 @@
+{
+  "name": "majin_bi",
+  "version": "1.0.0",
+  "description": "**Majin式 GemBI Generator** は、CSVデータをアップロードするだけで、高度なデータ分析ダッシュボード（HTML形式）を自動生成するローカルアプリケーションです。 Gemini 2.0 (or Pro) を活用し、[majin式GemBI.md](majin式GemBI.md) で定義された厳格なデータVisualization手法に基づいて、分析設計からコーディングまでを全自動で行います。",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "prepare": "husky",
+    "lint": "eslint .",
+    "format": "prettier --write ."
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx,mjs,cjs}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,css,md,html,yml,yaml}": [
+      "prettier --write"
+    ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tndhk/No34_Majin_BI_POC.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/tndhk/No34_Majin_BI_POC/issues"
+  },
+  "homepage": "https://github.com/tndhk/No34_Majin_BI_POC#readme",
+  "devDependencies": {
+    "@eslint/js": "^9.39.2",
+    "eslint": "^9.39.2",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^17.0.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.7",
+    "prettier": "^3.7.4"
+  }
+}
