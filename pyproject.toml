@@ -7,7 +7,7 @@ addopts = "-v --tb=short"
 
 [tool.coverage.run]
 source = ["src"]
-omit = ["tests/*"]
+omit = ["tests/*", "src/styles.py"]
 
 [tool.coverage.report]
 exclude_lines = [

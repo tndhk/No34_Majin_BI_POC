@@ -512,13 +512,19 @@ class AIGenerator:
                     if "</body>" in html_template:
                         html = html_template.replace("</body>", f"{injection_script}</body>")
                     else:
-                        html += injection_script
+                        html = html_template + injection_script
+
+        # Helper for safer injection
+        def inject_script(target_html, script):
+            if "</body>" in target_html:
+                return target_html.replace("</body>", f"{script}</body>")
+            return target_html + script
 
         # Chart.js Safety Net: 常にカラー関数とデフォルト設定を注入
-        html = html.replace("</body>", f"{CHART_SAFETY_NET_SCRIPT}</body>")
+        html = inject_script(html, CHART_SAFETY_NET_SCRIPT)
 
         # Direct View用スクリプトを追加
-        html = html.replace("</body>", f"{DIRECT_VIEW_SCRIPT}</body>")
+        html = inject_script(html, DIRECT_VIEW_SCRIPT)
 
         return html
 
