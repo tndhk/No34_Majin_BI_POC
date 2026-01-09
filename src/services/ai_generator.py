@@ -446,6 +446,50 @@ Markdown形式で出力してください。
                 else:
                     html += injection_script
 
+        # Chart.js Safety Net: 常にカラー関数とデフォルト設定を注入
+        chart_safety_net = """
+<script>
+(function() {
+    // === Chart.js Safety Net (Injected by AIGenerator) ===
+    try {
+        if (typeof Chart !== 'undefined') {
+            Chart.defaults.color = '#cbd5e1';
+            Chart.defaults.borderColor = '#334155';
+            Chart.defaults.font.family = "'DM Sans', sans-serif";
+        }
+        
+        if (!window.ORACLE_COLORS) {
+            window.ORACLE_COLORS = [
+                '#38bdf8', '#fbbf24', '#818cf8', '#34d399', '#f472b6',
+                '#2dd4bf', '#a78bfa', '#fb923c', '#9ca3af', '#60a5fa'
+            ];
+        }
+        
+        if (!window.assignOracleColors) {
+            window.assignOracleColors = function(chartData, index) {
+                var colors = window.ORACLE_COLORS;
+                var color = colors[index % colors.length];
+                if (!chartData || !chartData.datasets) return chartData;
+                chartData.datasets.forEach(function(ds) {
+                    if (ds.type === 'pie' || ds.type === 'doughnut') {
+                        ds.backgroundColor = ds.backgroundColor || colors;
+                        ds.borderColor = ds.borderColor || '#1e293b';
+                    } else {
+                        ds.backgroundColor = ds.backgroundColor || color;
+                        ds.borderColor = ds.borderColor || color;
+                    }
+                });
+                return chartData;
+            };
+        }
+    } catch (e) {
+        console.error('Chart.js Safety Net Error:', e);
+    }
+})();
+</script>
+"""
+        html = html.replace("</body>", f"{chart_safety_net}</body>")
+
         # Direct View用スクリプトを追加
         direct_view_script = """
 <script>

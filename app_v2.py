@@ -17,6 +17,7 @@ from src.services.ai_generator import AIGenerator
 from src.services.chat_handler import ChatHandler
 from src.services.data_processor import DataProcessor
 from src.services.genai_adapter import GenAIModelAdapter
+from src.services.mock_generator import MockAIGenerator
 
 load_dotenv()
 
@@ -42,6 +43,7 @@ SESSION_DEFAULTS = {
     "current_step": 0,
     "total_steps": 4,
     "last_generation_error": None,
+    "demo_mode": False,
 }
 
 PROGRESS_STEPS = [
@@ -59,218 +61,232 @@ CHAT_SUGGESTIONS = [
 
 MAJIN_ORACLE_CSS = """
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=Fira+Code:wght@400;500&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&family=JetBrains+Mono:wght@400;500&display=swap');
 
     :root {
-        --void-deep: #06060a;
-        --void-surface: #0d0d14;
-        --void-elevated: #14141f;
-        --void-border: #1e1e2e;
-        --oracle-cyan: #00e5ff;
-        --oracle-cyan-dim: #00b8cc;
-        --oracle-gold: #fbbf24;
-        --oracle-gold-dim: #d97706;
-        --oracle-purple: #a855f7;
-        --text-primary: #f0f0f5;
-        --text-secondary: #9090a0;
-        --text-muted: #606070;
-        --glow-cyan: 0 0 30px rgba(0, 229, 255, 0.3);
-        --glow-gold: 0 0 20px rgba(251, 191, 36, 0.25);
+        /* Base Colors - Deep Executive Navy */
+        --void-deep: #0b1120;       /* Dark Midnight Blue (背景最下層) */
+        --void-surface: #151e32;    /* Deep Slate (メイン背景) */
+        --void-elevated: #1e293b;   /* Slate 800 (カード背景) */
+        --void-border: #334155;     /* Slate 700 (明確な境界線) */
+
+        /* Accent Colors - Professional Trust */
+        --oracle-primary: #38bdf8;   /* Sky 400 (プライマリアクセント) */
+        --oracle-primary-dim: #0284c7; /* Sky 600 */
+        --oracle-gold: #fbbf24;      /* Amber 400 (ハイライト) */
+        --oracle-gold-dim: #d97706;  /* Amber 600 */
+        --oracle-accent: #818cf8;    /* Indigo 400 */
+        
+        /* Text Colors - High Contrast */
+        --text-primary: #f8fafc;     /* Slate 50 (ほぼ白) */
+        --text-secondary: #cbd5e1;   /* Slate 300 (高可読性グレー) */
+        --text-muted: #94a3b8;       /* Slate 400 */
+
+        /* Effects */
+        --shadow-card: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.15);
+        --glow-primary: 0 0 20px rgba(56, 189, 248, 0.2);
     }
 
     .stApp {
-        background: linear-gradient(145deg, var(--void-deep) 0%, #0a0a12 50%, var(--void-deep) 100%) !important;
+        background-color: var(--void-deep) !important;
+        background-image: none !important; /* フラットな背景推奨 */
     }
 
+    /* 背景の装飾を最小限に - プロフェッショナルな静寂 */
     .stApp::before {
         content: '';
         position: fixed;
-        top: 0; left: 0; right: 0; bottom: 0;
-        background:
-            radial-gradient(ellipse at 20% 20%, rgba(0, 229, 255, 0.03) 0%, transparent 50%),
-            radial-gradient(ellipse at 80% 80%, rgba(168, 85, 247, 0.03) 0%, transparent 50%),
-            radial-gradient(ellipse at 50% 50%, rgba(251, 191, 36, 0.02) 0%, transparent 70%);
+        top: 0; left: 0; right: 0; height: 300px;
+        background: linear-gradient(180deg, rgba(15, 23, 42, 0.8) 0%, transparent 100%);
         pointer-events: none;
         z-index: 0;
     }
 
     [data-testid="stSidebar"] {
-        background: var(--void-surface) !important;
+        background-color: var(--void-surface) !important;
         border-right: 1px solid var(--void-border) !important;
     }
     [data-testid="stSidebar"] * { color: var(--text-secondary) !important; }
     [data-testid="stSidebar"] .stTextInput input,
     [data-testid="stSidebar"] .stSelectbox > div > div {
-        background: var(--void-elevated) !important;
+        background-color: var(--void-elevated) !important;
         border: 1px solid var(--void-border) !important;
         color: var(--text-primary) !important;
+        border-radius: 0.5rem !important;
     }
 
     .main .block-container { padding-top: 2rem; max-width: 1600px; }
 
     .main-header {
-        font-family: 'Cormorant Garamond', Georgia, serif;
+        font-family: 'Cormorant Garamond', serif;
         font-size: 2.8rem; font-weight: 700; letter-spacing: 0.02em;
-        background: linear-gradient(135deg, var(--oracle-cyan) 0%, var(--oracle-gold) 50%, var(--oracle-purple) 100%);
+        /* 知性を感じるグラデーション */
+        background: linear-gradient(135deg, var(--oracle-primary) 0%, #60a5fa 50%, var(--oracle-accent) 100%);
         -webkit-background-clip: text; -webkit-text-fill-color: transparent;
         background-clip: text; margin-bottom: 0.25rem; display: inline-block;
+        text-shadow: 0 2px 10px rgba(56, 189, 248, 0.1);
     }
 
     .sub-header {
-        font-family: 'DM Sans', system-ui, sans-serif;
+        font-family: 'DM Sans', sans-serif;
         font-size: 1rem; color: var(--text-secondary);
         margin-bottom: 2rem; font-weight: 400; line-height: 1.6;
     }
 
     .stMarkdown h3 {
-        font-family: 'Cormorant Garamond', Georgia, serif !important;
-        font-size: 1.4rem !important; font-weight: 600 !important;
+        font-family: 'Cormorant Garamond', serif !important;
+        font-size: 1.5rem !important; font-weight: 600 !important;
         color: var(--text-primary) !important;
         padding-bottom: 0.5rem; border-bottom: 1px solid var(--void-border);
+        margin-top: 1.5rem !important;
     }
     .stMarkdown h3::before {
-        content: '\u25c6'; color: var(--oracle-cyan);
-        margin-right: 0.6rem; font-size: 0.75rem; opacity: 0.8;
+        content: '◈'; color: var(--oracle-primary);
+        margin-right: 0.6rem; font-size: 0.9rem; opacity: 0.9;
     }
 
     .stProgress > div > div > div > div {
-        background: linear-gradient(90deg, var(--oracle-cyan-dim), var(--oracle-cyan)) !important;
-        box-shadow: var(--glow-cyan);
+        background: linear-gradient(90deg, var(--oracle-primary-dim), var(--oracle-primary)) !important;
     }
 
+    /* Chat Container - Explicit Borders */
     .chat-container {
-        background: var(--void-elevated); border: 1px solid var(--void-border);
-        border-radius: 1rem; padding: 1.25rem; height: 500px; overflow-y: auto;
+        background-color: var(--void-elevated);
+        border: 1px solid var(--void-border);
+        border-radius: 0.75rem;
+        padding: 1.25rem; height: 500px; overflow-y: auto;
+        box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
     }
-    .chat-container::-webkit-scrollbar { width: 6px; }
-    .chat-container::-webkit-scrollbar-track { background: var(--void-deep); }
-    .chat-container::-webkit-scrollbar-thumb { background: var(--void-border); border-radius: 3px; }
+    .chat-container::-webkit-scrollbar { width: 8px; }
+    .chat-container::-webkit-scrollbar-track { background: var(--void-surface); }
+    .chat-container::-webkit-scrollbar-thumb { background: var(--void-border); border-radius: 4px; }
 
     [data-testid="stChatMessage"] {
-        background: var(--void-elevated) !important;
+        background-color: var(--void-elevated) !important;
         border: 1px solid var(--void-border) !important;
         border-radius: 0.75rem !important; margin-bottom: 0.75rem;
     }
     [data-testid="stChatMessage"] * { color: var(--text-secondary) !important; }
-    [data-testid="stChatMessageContent"] p { font-family: 'DM Sans', system-ui, sans-serif !important; }
+    [data-testid="stChatMessageContent"] p { font-family: 'DM Sans', sans-serif !important; }
 
     [data-testid="stChatInput"] {
-        background: var(--void-elevated) !important;
+        background-color: var(--void-elevated) !important;
         border: 1px solid var(--void-border) !important;
         border-radius: 0.75rem !important;
     }
     [data-testid="stChatInput"] textarea {
         background: transparent !important;
         color: var(--text-primary) !important;
-        font-family: 'DM Sans', system-ui, sans-serif !important;
+        font-family: 'DM Sans', sans-serif !important;
     }
 
     [data-testid="stFileUploader"] {
-        background: var(--void-elevated) !important;
+        background-color: var(--void-elevated) !important;
         border: 2px dashed var(--void-border) !important;
-        border-radius: 1rem !important; padding: 1.5rem !important;
-        transition: all 0.3s ease;
+        border-radius: 0.75rem !important; padding: 2rem !important;
+        transition: all 0.2s ease;
     }
     [data-testid="stFileUploader"]:hover {
-        border-color: var(--oracle-cyan-dim) !important;
-        box-shadow: inset 0 0 30px rgba(0, 229, 255, 0.05);
+        border-color: var(--oracle-primary) !important;
+        background-color: rgba(56, 189, 248, 0.05) !important;
     }
     [data-testid="stFileUploader"] * { color: var(--text-secondary) !important; }
 
+    /* Buttons - Sharp & Professional */
     .stButton > button {
-        font-family: 'DM Sans', system-ui, sans-serif !important;
-        font-weight: 600 !important; letter-spacing: 0.03em !important;
-        text-transform: uppercase !important; font-size: 0.8rem !important;
-        padding: 0.7rem 1.5rem !important; border-radius: 0.5rem !important;
-        border: none !important;
-        background: linear-gradient(135deg, var(--oracle-cyan-dim) 0%, var(--oracle-cyan) 100%) !important;
-        color: var(--void-deep) !important; box-shadow: var(--glow-cyan) !important;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        font-family: 'DM Sans', sans-serif !important;
+        font-weight: 600 !important; letter-spacing: 0.02em !important;
+        font-size: 0.85rem !important;
+        padding: 0.6rem 1.25rem !important; border-radius: 0.5rem !important;
+        border: 1px solid var(--void-border) !important;
+        background: var(--void-elevated) !important;
+        color: var(--text-primary) !important;
+        transition: all 0.2s ease !important;
+        box-shadow: var(--shadow-card) !important;
     }
     .stButton > button:hover {
-        transform: translateY(-2px) !important;
-        box-shadow: 0 0 40px rgba(0, 229, 255, 0.5) !important;
+        border-color: var(--oracle-primary) !important;
+        color: var(--oracle-primary) !important;
+        transform: translateY(-1px) !important;
     }
     .stButton > button[kind="primary"] {
-        background: linear-gradient(135deg, var(--oracle-gold-dim) 0%, var(--oracle-gold) 100%) !important;
-        box-shadow: var(--glow-gold) !important;
+        background: linear-gradient(135deg, var(--oracle-primary-dim) 0%, var(--oracle-primary) 100%) !important;
+        border: none !important;
+        color: #fff !important; /* Always white on primary */
+        box-shadow: 0 4px 6px rgba(2, 132, 199, 0.3) !important;
     }
     .stButton > button[kind="primary"]:hover {
-        box-shadow: 0 0 40px rgba(251, 191, 36, 0.5) !important;
+        box-shadow: 0 6px 12px rgba(2, 132, 199, 0.4) !important;
     }
 
     [data-testid="stDataFrame"] {
-        background: var(--void-elevated) !important;
+        background-color: var(--void-elevated) !important;
         border-radius: 0.75rem !important;
         border: 1px solid var(--void-border) !important;
     }
     [data-testid="stDataFrame"] * {
-        font-family: 'Fira Code', monospace !important;
+        font-family: 'JetBrains Mono', monospace !important;
         font-size: 0.85rem !important;
+        color: var(--text-secondary) !important;
     }
 
     .stSuccess {
-        background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(16, 185, 129, 0.05) 100%) !important;
-        border-left: 3px solid #10b981 !important; color: #6ee7b7 !important;
+        background-color: rgba(52, 211, 153, 0.1) !important;
+        border-left: 3px solid #34d399 !important; color: #34d399 !important;
     }
     .stWarning {
-        background: linear-gradient(135deg, rgba(251, 191, 36, 0.1) 0%, rgba(251, 191, 36, 0.05) 100%) !important;
+        background-color: rgba(251, 191, 36, 0.1) !important;
         border-left: 3px solid var(--oracle-gold) !important; color: var(--oracle-gold) !important;
     }
     .stError {
-        background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(239, 68, 68, 0.05) 100%) !important;
-        border-left: 3px solid #ef4444 !important; color: #fca5a5 !important;
+        background-color: rgba(248, 113, 113, 0.1) !important;
+        border-left: 3px solid #f87171 !important; color: #f87171 !important;
     }
 
     .stTabs [data-baseweb="tab-list"] {
-        background: var(--void-surface) !important;
-        border-radius: 0.75rem !important; padding: 0.25rem !important; gap: 0.25rem !important;
+        background-color: var(--void-surface) !important;
+        border-radius: 0.5rem !important; padding: 0.25rem !important; gap: 0.5rem !important;
+        border: 1px solid var(--void-border) !important;
     }
     .stTabs [data-baseweb="tab"] {
-        font-family: 'DM Sans', system-ui, sans-serif !important;
+        font-family: 'DM Sans', sans-serif !important;
         font-weight: 500 !important; color: var(--text-secondary) !important;
-        border-radius: 0.5rem !important;
+        border-radius: 0.3rem !important;
     }
     .stTabs [aria-selected="true"] {
-        background: var(--void-elevated) !important;
-        color: var(--oracle-cyan) !important;
+        background-color: var(--void-elevated) !important;
+        color: var(--oracle-primary) !important;
+        font-weight: 600 !important;
     }
 
     .streamlit-expanderHeader {
-        font-family: 'DM Sans', system-ui, sans-serif !important;
-        font-weight: 500 !important; color: var(--text-secondary) !important;
-        background: var(--void-elevated) !important; border-radius: 0.5rem !important;
+        font-family: 'DM Sans', sans-serif !important;
+        font-weight: 500 !important; color: var(--text-primary) !important;
+        background-color: var(--void-elevated) !important;
+        border-radius: 0.5rem !important;
+        border: 1px solid var(--void-border) !important;
     }
 
     .stMarkdown p, .stMarkdown li {
         color: var(--text-secondary) !important;
-        font-family: 'DM Sans', system-ui, sans-serif !important;
-        line-height: 1.6 !important;
+        font-family: 'DM Sans', sans-serif !important;
+        line-height: 1.7 !important;
     }
-    .stMarkdown strong { color: var(--text-primary) !important; }
+    .stMarkdown strong { color: var(--text-primary) !important; font-weight: 600 !important; }
     .stMarkdown code {
-        background: var(--void-elevated) !important;
-        color: var(--oracle-cyan) !important;
+        background-color: var(--void-surface) !important;
+        color: var(--oracle-primary) !important;
         padding: 0.2em 0.4em !important; border-radius: 0.25rem !important;
-        font-family: 'Fira Code', monospace !important;
-    }
-
-    .stDownloadButton > button {
-        background: var(--void-elevated) !important;
+        font-family: 'JetBrains Mono', monospace !important;
         border: 1px solid var(--void-border) !important;
-        color: var(--text-primary) !important; box-shadow: none !important;
-    }
-    .stDownloadButton > button:hover {
-        border-color: var(--oracle-cyan-dim) !important;
-        color: var(--oracle-cyan) !important; box-shadow: var(--glow-cyan) !important;
     }
 
-    .stSpinner > div { border-color: var(--oracle-cyan) transparent transparent transparent !important; }
+    .stSpinner > div { border-color: var(--oracle-primary) transparent transparent transparent !important; }
 
     hr {
         border: none !important; height: 1px !important;
-        background: linear-gradient(90deg, transparent, var(--void-border), transparent) !important;
-        margin: 1.5rem 0 !important;
+        background-color: var(--void-border) !important;
+        margin: 2rem 0 !important;
     }
 
     #MainMenu, footer, header { visibility: hidden; }
@@ -352,15 +368,21 @@ def render_sidebar() -> str:
             help="gemini-2.5-flashが推奨（2026年1月時点の最新安定版）",
         )
 
+        st.toggle("Demo Mode (No API)", key="demo_mode", help="APIを使用せずにサンプルデータを表示します")
+
         st.markdown("---")
         st.markdown("### Status")
 
         api_key = os.getenv("GOOGLE_API_KEY")
+        is_demo_mode = st.session_state.get("demo_mode", False)
+        
         if api_key:
             st.success("API Key: Configured")
+        elif is_demo_mode:
+            st.info("API Key: Not required (Demo Mode)")
         else:
             st.error("API Key: Missing")
-            st.info("Please set GOOGLE_API_KEY in .env file")
+            st.info("Please set GOOGLE_API_KEY in .env file, or enable Demo Mode.")
             st.stop()
 
     return model_name
@@ -373,7 +395,10 @@ def render_sidebar() -> str:
 
 def generate_dashboard(df: pd.DataFrame, model) -> bool:
     """ダッシュボードをワンショットで生成"""
-    generator = AIGenerator(model=model)
+    if st.session_state.get("demo_mode", False):
+        generator = MockAIGenerator()
+    else:
+        generator = AIGenerator(model=model)
 
     def progress_callback(step: int, message: str) -> None:
         st.session_state.current_step = step
@@ -432,6 +457,18 @@ def render_upload_view(model) -> None:
         type=["csv"],
         help="日本語のCSV（Shift_JIS / UTF-8）に対応",
     )
+
+    if st.session_state.get("demo_mode", False):
+        st.info("🔷 デモモード有効: CSVアップロードなしでサンプルダッシュボードを生成します。")
+        if st.button("デモデータを生成 (No API Cost)", type="primary", width="stretch"):
+            with st.spinner("デモ環境を構築中..."):
+                # ダミーデータフレームを作成
+                dummy_df = pd.DataFrame({"dummy": [1, 2, 3]})
+                st.session_state.df_full = dummy_df
+                
+                if generate_dashboard(dummy_df, model):
+                    st.rerun()
+        return
 
     if not uploaded_file:
         if st.session_state.generation_status == "generating":
