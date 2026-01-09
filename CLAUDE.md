@@ -158,7 +158,7 @@ pre-commit run --all-files
 
 - APIキー: `.env`で管理（`.env.example`をコピー）
 - 本番HTML出力時はAPIキーを空欄で出力（セキュリティ考慮）
-- Gemini API: `google-generativeai`パッケージ使用
+- Gemini API: `google-genai`パッケージ使用
   - 推奨モデル: `gemini-2.5-flash`（2026年1月時点の最新安定版）
   - 次世代: `gemini-3-flash-preview`（実験版）
   - 軽量版: `gemini-2.5-flash-lite`（高速・低コスト）

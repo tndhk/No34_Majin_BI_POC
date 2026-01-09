@@ -5,8 +5,9 @@ Data BI Analytics App v2
 """
 
 import os
+import traceback
 
-import google.generativeai as genai
+from google import genai
 import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
@@ -15,6 +16,7 @@ from dotenv import load_dotenv
 from src.services.ai_generator import AIGenerator
 from src.services.chat_handler import ChatHandler
 from src.services.data_processor import DataProcessor
+from src.services.genai_adapter import GenAIModelAdapter
 
 load_dotenv()
 
@@ -39,6 +41,7 @@ SESSION_DEFAULTS = {
     "generation_status": "idle",
     "current_step": 0,
     "total_steps": 4,
+    "last_generation_error": None,
 }
 
 PROGRESS_STEPS = [
@@ -389,6 +392,9 @@ def generate_dashboard(df: pd.DataFrame, model) -> bool:
         return True
     except Exception as e:
         st.error(f"生成エラー: {e}")
+        st.session_state.last_generation_error = traceback.format_exc()
+        with st.expander("詳細ログ", expanded=True):
+            st.code(st.session_state.last_generation_error)
         st.session_state.generation_status = "idle"
         return False
 
@@ -444,10 +450,10 @@ def render_upload_view(model) -> None:
         st.success(f"読み込み完了: {len(df)}行 x {len(df.columns)}列")
 
         with st.expander("データプレビュー", expanded=True):
-            st.dataframe(df.head(10), use_container_width=True)
+            st.dataframe(df.head(10), width="stretch")
 
         st.markdown("---")
-        if st.button("ダッシュボードを生成", type="primary", use_container_width=True):
+        if st.button("ダッシュボードを生成", type="primary", width="stretch"):
             with st.spinner("生成中..."):
                 render_progress()
                 if generate_dashboard(df, model):
@@ -495,7 +501,7 @@ def _render_dashboard_panel() -> None:
             data=st.session_state.dashboard_html,
             file_name="dashboard.html",
             mime="text/html",
-            use_container_width=True,
+            width="stretch",
         )
 
     if st.button("新しいデータで始める"):
@@ -576,8 +582,8 @@ def main() -> None:
 
     model_name = render_sidebar()
     api_key = os.getenv("GOOGLE_API_KEY")
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel(model_name=model_name)
+    client = genai.Client(api_key=api_key)
+    model = GenAIModelAdapter(client, model_name=model_name)
 
     if is_dashboard_complete():
         render_dashboard_view(model)

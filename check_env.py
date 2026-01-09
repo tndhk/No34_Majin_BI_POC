@@ -1,5 +1,5 @@
 import streamlit
-import google.generativeai
+from google import genai
 import pandas
 import dotenv
 import prompts
