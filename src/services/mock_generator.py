@@ -1,9 +1,11 @@
 import json
-import pandas as pd
 import time
-from typing import Optional, Dict, Any, Tuple
 from collections.abc import Callable
+
+import pandas as pd
+
 from src.services.ai_generator import GenerationResult
+
 
 class MockAIGenerator:
     """
@@ -18,7 +20,7 @@ class MockAIGenerator:
         モックデータを生成して返します。入力DFは無視されます。
         """
         print("MOCK MODE: Generating executive dashboard without API call...")
-        
+
         if progress_callback:
             progress_callback(1, "デモデータを準備中...")
             time.sleep(0.5)
@@ -34,55 +36,41 @@ class MockAIGenerator:
                 "total_passengers": 891,
                 "survival_rate": "38.4%",
                 "avg_fare": "$32.20",
-                "first_class_survival": "62.9%"
+                "first_class_survival": "62.9%",
             },
             "charts": {
                 "survival_by_class": {
                     "labels": ["1st Class", "2nd Class", "3rd Class"],
-                    "datasets": [{
-                        "label": "Survival Rate",
-                        "data": [62.9, 47.3, 24.2],
-                        "type": "bar"
-                    }]
+                    "datasets": [
+                        {"label": "Survival Rate", "data": [62.9, 47.3, 24.2], "type": "bar"}
+                    ],
                 },
                 "survival_by_gender": {
                     "labels": ["Female", "Male"],
-                    "datasets": [{
-                        "label": "Survivors",
-                        "data": [233, 109],
-                        "type": "doughnut"
-                    }]
+                    "datasets": [{"label": "Survivors", "data": [233, 109], "type": "doughnut"}],
                 },
                 "age_distribution": {
                     "labels": ["0-10", "11-20", "21-30", "31-40", "41-50", "51-60", "60+"],
-                    "datasets": [{
-                        "label": "Passenger Count",
-                        "data": [64, 115, 230, 155, 86, 42, 22],
-                        "type": "line",
-                        "fill": True
-                    }]
+                    "datasets": [
+                        {
+                            "label": "Passenger Count",
+                            "data": [64, 115, 230, 155, 86, 42, 22],
+                            "type": "line",
+                            "fill": True,
+                        }
+                    ],
                 },
                 "fare_analysis": {
                     "labels": ["S", "C", "Q"],
-                    "datasets": [{
-                        "label": "Average Fare",
-                        "data": [27.07, 59.95, 13.27],
-                        "type": "radar"
-                    }]
-                }
+                    "datasets": [
+                        {"label": "Average Fare", "data": [27.07, 59.95, 13.27], "type": "radar"}
+                    ],
+                },
             },
-            "insight_summary": "Overall survival rate was 38.4%. First-class passengers had a significantly higher survival chance (62.9%) compared to 3rd class (24.2%). Females were prioritized in rescue operations."
+            "insight_summary": "Overall survival rate was 38.4%. First-class passengers had a significantly higher survival chance (62.9%) compared to 3rd class (24.2%). Females were prioritized in rescue operations.",
         }
 
         # 2. Mock Python Code (Just for display)
-        mock_python_code = """
-def aggregate_all_data(df):
-    # This is a MOCK aggregation function
-    return {
-        "kpi": {"total_passengers": len(df), ...},
-        "charts": {...}
-    }
-"""
 
         # 3. Mock HTML Template (Executive Theme applied)
         mock_html = """
@@ -96,7 +84,7 @@ def aggregate_all_data(df):
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
-    
+
     <style>
         :root {
             /* Base Colors - Deep Executive Navy */
@@ -108,7 +96,7 @@ def aggregate_all_data(df):
             /* Accent Colors - Professional Trust */
             --text-primary: #f8fafc;
             --text-secondary: #cbd5e1;
-            
+
             --oracle-colors: #38bdf8, #fbbf24, #818cf8, #34d399, #f472b6, #2dd4bf;
         }
 
@@ -157,7 +145,7 @@ def aggregate_all_data(df):
                 if (ds.type === 'pie' || ds.type === 'doughnut' || (!ds.type && chartData.labels.length > 1 && !chartData.datasets[0].label)) {
                      // 円グラフなど
                     ds.backgroundColor = ORACLE_COLORS;
-                    ds.borderColor = '#1e293b'; 
+                    ds.borderColor = '#1e293b';
                 } else {
                     // 棒グラフなど
                     ds.backgroundColor = color;
@@ -223,7 +211,7 @@ def aggregate_all_data(df):
                     <canvas id="chart2"></canvas>
                 </div>
             </div>
-            
+
             <!-- Chart 3 -->
             <div class="card">
                 <div class="flex justify-between items-center mb-4">
@@ -256,7 +244,7 @@ def aggregate_all_data(df):
 
             // Injected Data (will be replaced by Python)
             const dashboardData = {{JSON_DATA}};
-            
+
             const ORACLE_COLORS_RUNTIME = [
                 '#38bdf8', '#fbbf24', '#818cf8', '#34d399', '#f472b6',
                 '#2dd4bf', '#a78bfa', '#fb923c', '#9ca3af', '#60a5fa'
@@ -334,5 +322,5 @@ def aggregate_all_data(df):
         return GenerationResult(
             html=assembled_html,
             data=mock_data,
-            blueprint="## Mock Blueprint\n- This is a pre-defined demo blueprint."
+            blueprint="## Mock Blueprint\n- This is a pre-defined demo blueprint.",
         )

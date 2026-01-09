@@ -1,7 +1,9 @@
+from unittest.mock import Mock
 
 import pytest
-from unittest.mock import Mock
+
 from src.services.ai_generator import AIGenerator
+
 
 class TestAIGeneratorRobustness:
     """AIGeneratorの堅牢性テスト"""
@@ -38,4 +40,3 @@ class TestAIGeneratorRobustness:
         result = generator.assemble_html(template, data)
         assert '<script>const dashboardData = {"key": "value"};</script>' in result
         assert "</body>" in result
-

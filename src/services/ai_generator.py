@@ -21,7 +21,6 @@ import pandas as pd
 
 from prompts import PHASE1_PROMPT_TEMPLATE, PHASE2_PROMPT_TEMPLATE
 
-
 CHART_SAFETY_NET_SCRIPT = """
 <script src="https://unpkg.com/lucide@latest"></script>
 <script>
@@ -31,13 +30,13 @@ CHART_SAFETY_NET_SCRIPT = """
         if (typeof lucide !== 'undefined') {
             lucide.createIcons();
         }
-        
+
         if (typeof Chart !== 'undefined') {
             Chart.defaults.color = '#cbd5e1';
             Chart.defaults.borderColor = '#334155';
             Chart.defaults.font.family = "'DM Sans', sans-serif";
         }
-        
+
         if (!window.ORACLE_COLORS) {
             window.ORACLE_COLORS = [
                 '#38bdf8', '#fbbf24', '#818cf8', '#34d399', '#f472b6',
@@ -45,7 +44,6 @@ CHART_SAFETY_NET_SCRIPT = """
             ];
         }
 
-        
         if (!window.assignOracleColors) {
             window.assignOracleColors = function(chartData, index) {
                 var colors = window.ORACLE_COLORS;
@@ -279,10 +277,7 @@ class AIGenerator:
         df.head(5).to_csv(buffer, index=False)
         sample_data = buffer.getvalue()
 
-        prompt = PHASE1_PROMPT_TEMPLATE.format(
-            columns=columns_str,
-            sample_data=sample_data
-        )
+        prompt = PHASE1_PROMPT_TEMPLATE.format(columns=columns_str, sample_data=sample_data)
         response = self.model.generate_content(prompt)
         return response.text
 
@@ -302,8 +297,10 @@ class AIGenerator:
         """
         # カラムリストを文字列化 (Ground Truth)
         columns_str = ", ".join(df.columns.tolist())
-        
-        prompt = PHASE2_PROMPT_TEMPLATE.replace("{{BLUEPRINT}}", blueprint).replace("{{COLUMNS}}", columns_str)
+
+        prompt = PHASE2_PROMPT_TEMPLATE.replace("{{BLUEPRINT}}", blueprint).replace(
+            "{{COLUMNS}}", columns_str
+        )
         response = self.model.generate_content(prompt)
         content = response.text
 
@@ -313,11 +310,15 @@ class AIGenerator:
             raise ValueError("Pythonコードブロックが見つかりません")
 
         # HTMLコードを抽出（柔軟なパターン）
-        html_match = re.search(r"`{3,}\s*html?\s*\n(.*?)\n`{3,}", content, re.DOTALL | re.IGNORECASE)
+        html_match = re.search(
+            r"`{3,}\s*html?\s*\n(.*?)\n`{3,}", content, re.DOTALL | re.IGNORECASE
+        )
 
         # フォールバック: HTMLタグで直接検索
         if not html_match:
-            html_match = re.search(r"(<!DOCTYPE html>.*?</html>)", content, re.DOTALL | re.IGNORECASE)
+            html_match = re.search(
+                r"(<!DOCTYPE html>.*?</html>)", content, re.DOTALL | re.IGNORECASE
+            )
 
         if not html_match:
             raise ValueError("HTMLコードブロックが見つかりません")
@@ -398,7 +399,7 @@ class AIGenerator:
             if not repaired:
                 msg = _format_syntax_error(e, code)
                 raise ValueError(f"生成された集計コードに構文エラーがあります: {msg}") from e
-            
+
             repaired_code = _rewrite_generated_calls(repaired)
             try:
                 exec(repaired_code, scope, scope)
@@ -437,14 +438,14 @@ class AIGenerator:
                 raise ValueError(
                     f"集計コードの実行に失敗しました: {_format_runtime_error(error)}"
                 ) from error
-            
+
             # Repaired code execution
             normalized_repaired = _rewrite_generated_calls(repaired)
             scope = self._create_scope(df)
             self._exec_code_safe(normalized_repaired, repaired, scope)
 
             if "aggregate_all_data" not in scope:
-                raise ValueError("修正後のaggregate_all_data 関数が定義されていません")
+                raise ValueError("修正後のaggregate_all_data 関数が定義されていません") from error
 
             try:
                 return scope["aggregate_all_data"](df)
@@ -472,7 +473,7 @@ class AIGenerator:
         # 1. プレースホルダーの置換（空白許容）
         # {{JSON_DATA}}, {{ JSON_DATA }}, {JSON_DATA} 等に対応
         pattern = r"\{\{\s*JSON_DATA\s*\}\}"
-        
+
         if re.search(pattern, html_template):
             html = re.sub(pattern, lambda _: json_data, html_template)
         else:
@@ -480,24 +481,31 @@ class AIGenerator:
             # const dashboardData = ... ; を探して置換
             # DOTALLを使って複数行に対応
             var_pattern = r"(const\s+dashboardData\s*=\s*)(.*?)(\s*;)"
-            
+
             # 既存の dashboardData があるか確認（複数行対応）
             match = re.search(var_pattern, html_template, re.DOTALL)
-            
+
             if match:
                 # JSONデータが安全に置換されるようにエスケープ処理などは json.dumps で済んでいる
                 # 後方参照を使って variable 定義を書き換え
-                html = re.sub(var_pattern, f"\\1{json_data}\\3", html_template, count=1, flags=re.DOTALL)
+                html = re.sub(
+                    var_pattern, f"\\1{json_data}\\3", html_template, count=1, flags=re.DOTALL
+                )
             else:
                 # 3. 最終手段: scriptタグを強制挿入
                 # 既存の dashboardData が中途半端に存在して重複エラーになるのを防ぐため、念のため単純な置換も試みる
                 if "const dashboardData =" in html_template:
-                     # Regexで拾えなかったが文字列としては存在する場合、コメントアウトするなどして無効化したいが、
-                     # ここでは単純に追記モード（リスクあり）ではなく、警告をログに残すべきだが、
-                     # 実用上は injection_script を body 末尾に追加することで overwrite はできない（const再宣言エラーになる）。
-                     # なので、var_pattern を緩和して再トライ
-                     loose_pattern = r"const\s+dashboardData\s*="
-                     html = re.sub(loose_pattern, f"// replaced\nconst dashboardData = {json_data}; //", html_template, count=1)
+                    # Regexで拾えなかったが文字列としては存在する場合、コメントアウトするなどして無効化したいが、
+                    # ここでは単純に追記モード（リスクあり）ではなく、警告をログに残すべきだが、
+                    # 実用上は injection_script を body 末尾に追加することで overwrite はできない（const再宣言エラーになる）。
+                    # なので、var_pattern を緩和して再トライ
+                    loose_pattern = r"const\s+dashboardData\s*="
+                    html = re.sub(
+                        loose_pattern,
+                        f"// replaced\nconst dashboardData = {json_data}; //",
+                        html_template,
+                        count=1,
+                    )
                 else:
                     # bodyの閉じタグの直前に挿入
                     injection_script = f"<script>const dashboardData = {json_data};</script>"
@@ -505,7 +513,6 @@ class AIGenerator:
                         html = html_template.replace("</body>", f"{injection_script}</body>")
                     else:
                         html += injection_script
-
 
         # Chart.js Safety Net: 常にカラー関数とデフォルト設定を注入
         html = html.replace("</body>", f"{CHART_SAFETY_NET_SCRIPT}</body>")

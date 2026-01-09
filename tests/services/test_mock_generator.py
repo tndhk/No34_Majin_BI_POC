@@ -1,7 +1,9 @@
 import unittest
+
 import pandas as pd
-import json
+
 from src.services.mock_generator import MockAIGenerator
+
 
 class TestMockAIGenerator(unittest.TestCase):
     """
@@ -73,7 +75,7 @@ class TestMockAIGenerator(unittest.TestCase):
         self.assertIn("kpi", result.data)
         self.assertIn("charts", result.data)
         self.assertIn("insight_summary", result.data)
-        
+
         # Check specific mock data values (contract verification)
         self.assertEqual(result.data["kpi"]["total_passengers"], 891)
         self.assertIn("survival_by_class", result.data["charts"])
@@ -93,7 +95,7 @@ class TestMockAIGenerator(unittest.TestCase):
         self.assertIn("Demo Mode", result.html)
         # Verify JSON injection worked
         # We check if a known unique value from mock_data is present in html
-        self.assertIn("38.4%", result.html) # survival_rate value
+        self.assertIn("38.4%", result.html)  # survival_rate value
 
     def test_mock_06_progress_callback(self):
         """
@@ -102,6 +104,7 @@ class TestMockAIGenerator(unittest.TestCase):
         """
         # Given: A mock callback
         progress_updates = []
+
         def mock_callback(step: int, message: str):
             progress_updates.append((step, message))
 
@@ -111,6 +114,7 @@ class TestMockAIGenerator(unittest.TestCase):
         # Then: Callback is called
         self.assertGreater(len(progress_updates), 0)
         self.assertEqual(progress_updates[0][0], 1)
-        
-if __name__ == '__main__':
+
+
+if __name__ == "__main__":
     unittest.main()

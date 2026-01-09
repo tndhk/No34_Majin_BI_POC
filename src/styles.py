@@ -15,7 +15,7 @@ MAJIN_ORACLE_CSS = """
         --oracle-gold: #fbbf24;      /* Amber 400 (ハイライト) */
         --oracle-gold-dim: #d97706;  /* Amber 600 */
         --oracle-accent: #818cf8;    /* Indigo 400 */
-        
+
         /* Text Colors - High Contrast */
         --text-primary: #f8fafc;     /* Slate 50 (ほぼ白) */
         --text-secondary: #cbd5e1;   /* Slate 300 (高可読性グレー) */

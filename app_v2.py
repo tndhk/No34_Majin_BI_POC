@@ -7,11 +7,11 @@ Data BI Analytics App v2
 import os
 import traceback
 
-from google import genai
 import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
 from dotenv import load_dotenv
+from google import genai
 
 from src.services.ai_generator import AIGenerator
 from src.services.chat_handler import ChatHandler
@@ -137,14 +137,16 @@ def render_sidebar() -> str:
             help="gemini-2.5-flashが推奨（2026年1月時点の最新安定版）",
         )
 
-        st.toggle("Demo Mode (No API)", key="demo_mode", help="APIを使用せずにサンプルデータを表示します")
+        st.toggle(
+            "Demo Mode (No API)", key="demo_mode", help="APIを使用せずにサンプルデータを表示します"
+        )
 
         st.markdown("---")
         st.markdown("### Status")
 
         api_key = os.getenv("GOOGLE_API_KEY")
         is_demo_mode = st.session_state.get("demo_mode", False)
-        
+
         if api_key:
             st.success("API Key: Configured")
         elif is_demo_mode:
@@ -234,7 +236,7 @@ def render_upload_view(model) -> None:
                 # ダミーデータフレームを作成
                 dummy_df = pd.DataFrame({"dummy": [1, 2, 3]})
                 st.session_state.df_full = dummy_df
-                
+
                 if generate_dashboard(dummy_df, model):
                     st.rerun()
         return

@@ -269,4 +269,3 @@ def aggregate_all_data(df):
 </html>
 ```
 """
-
