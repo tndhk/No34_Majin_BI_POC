@@ -322,16 +322,16 @@ def render_progress() -> None:
     if st.session_state.generation_status != "generating":
         return
 
-    current = st.session_state.current_step
-    progress = current / st.session_state.total_steps
+    current = st.session_state.current_step  # AIGeneratorから1～4の値を受け取る
+    progress = min(current / st.session_state.total_steps, 1.0)
     st.progress(progress)
 
     cols = st.columns(4)
     for i, (_, label) in enumerate(PROGRESS_STEPS):
         with cols[i]:
-            if i < current:
+            if i < current - 1:  # current=1のとき、i=0で比較すると0<0は偽
                 st.markdown(f"~~{label}~~")
-            elif i == current:
+            elif i == current - 1:  # current=1のとき、i=0で表示
                 st.markdown(f"[{label}...]")
             else:
                 st.markdown(label)
